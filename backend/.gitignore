@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Virtual envs
+.venv/
+venv/
+env/
+.shortly_env/
+
+# Environment / secrets
+.env
+*.local
+
+# SQLite (local/test)
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini

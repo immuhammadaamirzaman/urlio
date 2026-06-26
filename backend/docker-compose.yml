@@ -1,0 +1,70 @@
+# ShortlyX local/integration stack: API + Postgres + Redis.
+# Usage:
+#   docker compose up -d --build
+#   docker compose run --rm migrate   # apply migrations
+#   open http://localhost:8000/docs
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shortlyx
+      POSTGRES_PASSWORD: shortlyx
+      POSTGRES_DB: shortlyx
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shortlyx -d shortlyx"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot migration runner. `docker compose run --rm migrate`.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://shortlyx:shortlyx@db:5432/shortlyx
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://shortlyx:shortlyx@db:5432/shortlyx
+      REDIS_URL: redis://redis:6379/0
+      BASE_URL: http://localhost:8000
+      SECRET_KEY: dev-only-secret-change-me
+      ENVIRONMENT: development
+      WEB_CONCURRENCY: "4"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
