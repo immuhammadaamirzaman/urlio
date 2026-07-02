@@ -18,6 +18,9 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # ``_split_csv`` validator can parse plain comma-separated environment strings.
 CSVList = Annotated[list[str], NoDecode]
 
+# Known-insecure placeholder; production refuses to boot with it (see the validator).
+_DEFAULT_SECRET_KEY = "CHANGE_ME_DEV_SECRET_NOT_FOR_PROD"
+
 
 class Settings(BaseSettings):
     """Strongly-typed application configuration."""
@@ -41,6 +44,9 @@ class Settings(BaseSettings):
     PORT: int = 8000
     LOG_LEVEL: str = "INFO"
     LOG_JSON: bool = True
+    # IPs or CIDR ranges of reverse proxies whose X-Forwarded-For may be trusted.
+    # When empty (the default), X-Forwarded-For is ignored and the socket peer is used.
+    TRUSTED_PROXIES: CSVList = []
 
     # --- Database ---
     # Provide either DATABASE_URL directly, or the POSTGRES_* parts below and let the
@@ -67,9 +73,11 @@ class Settings(BaseSettings):
     CLICK_STREAM_MAXLEN: int = 1_000_000
     CLICK_CONSUMER_GROUP: str = "clickflush"
     CLICK_FLUSH_BATCH: int = 500
+    CLICK_FLUSH_ENABLED: bool = True
+    CLICK_FLUSH_INTERVAL_SECONDS: float = 5.0
 
     # --- Security / JWT ---
-    SECRET_KEY: str = "CHANGE_ME_DEV_SECRET_NOT_FOR_PROD"
+    SECRET_KEY: str = _DEFAULT_SECRET_KEY
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -113,7 +121,9 @@ class Settings(BaseSettings):
 
     # --- CORS / headers ---
     CORS_ORIGINS: CSVList = ["*"]
-    CORS_ALLOW_CREDENTIALS: bool = True
+    # The API authenticates with Bearer headers, not cookies, so credentialed CORS is
+    # unnecessary; enabling it requires an explicit CORS_ORIGINS list (never "*").
+    CORS_ALLOW_CREDENTIALS: bool = False
     CORS_ALLOW_METHODS: CSVList = ["*"]
     CORS_ALLOW_HEADERS: CSVList = ["*"]
     SECURITY_HEADERS_ENABLED: bool = True
@@ -128,6 +138,7 @@ class Settings(BaseSettings):
         "CORS_ORIGINS",
         "CORS_ALLOW_METHODS",
         "CORS_ALLOW_HEADERS",
+        "TRUSTED_PROXIES",
         mode="before",
     )
     @classmethod
@@ -136,6 +147,24 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _enforce_secure_configuration(self) -> Settings:
+        """Refuse to boot with credentials-forging or credential-leaking config."""
+        if self.is_production and (
+            self.SECRET_KEY == _DEFAULT_SECRET_KEY or len(self.SECRET_KEY) < 32
+        ):
+            raise ValueError(
+                "SECRET_KEY must be set to a unique value of at least 32 characters "
+                'in production. Generate one with: python -c "import secrets; '
+                'print(secrets.token_urlsafe(64))"'
+            )
+        if self.CORS_ALLOW_CREDENTIALS and "*" in self.CORS_ORIGINS:
+            raise ValueError(
+                "CORS_ALLOW_CREDENTIALS=true requires an explicit CORS_ORIGINS list; "
+                'a wildcard ("*") origin would grant any website credentialed access.'
+            )
+        return self
 
     @model_validator(mode="after")
     def _assemble_database_url(self) -> Settings:

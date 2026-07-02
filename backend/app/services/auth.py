@@ -49,7 +49,7 @@ async def register_user(session: AsyncSession, data: UserCreate) -> User:
     """Create a new user; raises if the email is already registered."""
     user = User(
         email=data.email.lower(),
-        hashed_password=hash_password(data.password),
+        hashed_password=await hash_password(data.password),
         display_name=data.display_name,
     )
     session.add(user)
@@ -67,9 +67,9 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     user = await _get_user_by_email(session, email)
     if user is None:
         # Equalize timing so a missing account is indistinguishable from a wrong password.
-        dummy_verify()
+        await dummy_verify()
         raise InvalidCredentialsError()
-    if not verify_password(password, user.hashed_password):
+    if not await verify_password(password, user.hashed_password):
         raise InvalidCredentialsError()
     if not user.is_active:
         raise InactiveUserError()
