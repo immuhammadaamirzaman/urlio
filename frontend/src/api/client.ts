@@ -92,6 +92,19 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
+/**
+ * Peek at a 401 response's error code without consuming the body (parseError may still
+ * need it, hence the clone). Returns null when the body isn't a parseable error envelope.
+ */
+async function peek401Code(res: Response): Promise<string | null> {
+  try {
+    const body = (await res.clone().json()) as ApiErrorBody;
+    return body?.error?.code ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let body: ApiErrorBody | null = null;
   try {
@@ -124,17 +137,23 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 
   // Attempt a single transparent refresh + retry on a refreshable 401.
   if (res.status === 401 && opts.auth !== false && tokenStore.getRefresh()) {
-    let shouldRetry = true;
-    // Peek at the error code without consuming the body we may need below.
-    try {
-      const clone = res.clone();
-      const body = (await clone.json()) as ApiErrorBody;
-      shouldRetry = REFRESHABLE_CODES.has(body?.error?.code ?? "");
-    } catch {
-      shouldRetry = true;
-    }
-    if (shouldRetry && (await refreshAccessToken())) {
+    // An unparseable body is treated as refreshable so a flaky proxy response doesn't
+    // skip the refresh attempt.
+    const code = await peek401Code(res);
+    if (code !== null && !REFRESHABLE_CODES.has(code)) {
+      // Revoked token / inactive user: no refresh can fix this, so drop the session.
+      // AuthContext subscribes to the store and ProtectedRoute redirects to login.
+      tokenStore.clear();
+    } else if (await refreshAccessToken()) {
       res = await doFetch(path, opts);
+      if (res.status === 401) {
+        // The retry can still 401 non-refreshably (e.g. the account was deactivated
+        // between refresh and retry) — treat that the same as above.
+        const retryCode = await peek401Code(res);
+        if (retryCode !== null && !REFRESHABLE_CODES.has(retryCode)) {
+          tokenStore.clear();
+        }
+      }
     }
   }
 

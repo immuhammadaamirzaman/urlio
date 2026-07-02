@@ -17,6 +17,29 @@ function notify(): void {
   for (const l of listeners) l();
 }
 
+// Cross-tab synchronization: the storage event only fires in *other* tabs, so when tab A
+// rotates the refresh token (or logs out), tab B re-reads the new values here instead of
+// refreshing with a stale, already-rotated token. Because the event never fires in the
+// tab that wrote, this cannot loop with set()/clear() above.
+let storageListenerRegistered = false;
+
+function syncFromStorage(e: StorageEvent): void {
+  // A null key means localStorage.clear(); otherwise only react to our own keys.
+  if (e.key !== null && e.key !== ACCESS_KEY && e.key !== REFRESH_KEY) return;
+  const nextAccess = localStorage.getItem(ACCESS_KEY);
+  const nextRefresh = localStorage.getItem(REFRESH_KEY);
+  // Skip notify() when nothing actually changed to avoid spurious re-renders.
+  if (nextAccess === accessToken && nextRefresh === refreshToken) return;
+  accessToken = nextAccess;
+  refreshToken = nextRefresh;
+  notify();
+}
+
+if (!storageListenerRegistered) {
+  storageListenerRegistered = true;
+  window.addEventListener("storage", syncFromStorage);
+}
+
 export const tokenStore = {
   getAccess(): string | null {
     return accessToken;
@@ -33,11 +56,6 @@ export const tokenStore = {
     localStorage.setItem(ACCESS_KEY, pair.access_token);
     localStorage.setItem(REFRESH_KEY, pair.refresh_token);
     notify();
-  },
-  /** Update only the access token (used after a refresh that doesn't rotate state externally). */
-  setAccess(token: string): void {
-    accessToken = token;
-    localStorage.setItem(ACCESS_KEY, token);
   },
   clear(): void {
     accessToken = null;
