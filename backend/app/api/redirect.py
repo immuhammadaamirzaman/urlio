@@ -123,7 +123,7 @@ async def submit_password(
     if _expired(link.expires_at, datetime.now(UTC)):
         raise LinkExpiredError()
 
-    if not verify_link_password(link.hashed_link_password, payload.password):
+    if not await verify_link_password(link.hashed_link_password, payload.password):
         raise InvalidLinkPasswordError()
 
     _schedule_click(background, request, redis, link.id)

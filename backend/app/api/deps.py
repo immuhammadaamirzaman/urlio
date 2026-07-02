@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import AsyncIterator
+from functools import lru_cache
 
 from fastapi import Depends, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -62,12 +64,59 @@ def get_pagination(
     return PaginationParams(limit=limit, offset=offset, cursor=cursor)
 
 
+@lru_cache(maxsize=16)
+def _trusted_networks(
+    trusted_proxies: tuple[str, ...],
+) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """Parse trusted-proxy entries (IPs or CIDRs) into networks, skipping invalid ones."""
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for entry in trusted_proxies:
+        try:
+            networks.append(ipaddress.ip_network(entry.strip(), strict=False))
+        except ValueError:
+            continue  # never let a bad config entry match anything
+    return tuple(networks)
+
+
+def _is_trusted_proxy(
+    value: str, networks: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]
+) -> bool:
+    try:
+        addr = ipaddress.ip_address(value)
+    except ValueError:
+        return False  # non-IP values (garbage, host:port, ...) are never trusted
+    return any(addr in network for network in networks)
+
+
+def resolve_client_ip(
+    peer: str | None, forwarded_for: str | None, trusted_proxies: list[str]
+) -> str:
+    """Resolve the effective client IP from the socket peer and X-Forwarded-For.
+
+    X-Forwarded-For is honored only when the socket peer is a configured trusted proxy;
+    otherwise it is client-forgeable and ignored. Hops are walked right to left, and the
+    first hop that is not itself a trusted proxy wins (the address the nearest trusted
+    proxy actually saw — anything left of it is client-controlled). If every hop is
+    trusted, or the header is missing, the peer itself is returned.
+    """
+    if not peer:
+        return "unknown"
+    networks = _trusted_networks(tuple(trusted_proxies))
+    if not _is_trusted_proxy(peer, networks):
+        return peer
+    if forwarded_for:
+        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
+        for hop in reversed(hops):
+            if not _is_trusted_proxy(hop, networks):
+                return hop
+    return peer
+
+
 def client_ip(request: Request) -> str:
-    """Best-effort client IP (first X-Forwarded-For hop, else the socket peer)."""
+    """Client IP for rate limiting/analytics (X-Forwarded-For only behind trusted proxies)."""
+    peer = request.client.host if request.client else None
     forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return resolve_client_ip(peer, forwarded, settings.TRUSTED_PROXIES)
 
 
 async def _apply_rate_limit(

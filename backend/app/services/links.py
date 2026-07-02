@@ -96,7 +96,9 @@ async def create_link(
         owner_id=owner_id,
         is_custom_alias=is_custom,
         expires_at=_aware_utc(data.expires_at),
-        hashed_link_password=hash_password(data.password) if data.password else None,
+        hashed_link_password=(
+            await hash_password(data.password) if data.password else None
+        ),
     )
     session.add(link)
     try:
@@ -168,7 +170,9 @@ async def update_link(
         link.expires_at = _aware_utc(fields["expires_at"])
     if "password" in fields:
         password = fields["password"]
-        link.hashed_link_password = hash_password(password) if password else None
+        link.hashed_link_password = (
+            await hash_password(password) if password else None
+        )
 
     await session.commit()
     await session.refresh(link)
@@ -214,11 +218,11 @@ def is_expired(resolve: LinkResolve, now: datetime) -> bool:
     return expires is not None and expires < now
 
 
-def verify_link_password(hashed: str | None, password: str) -> bool:
+async def verify_link_password(hashed: str | None, password: str) -> bool:
     """Return True if ``password`` matches (or the link has no password set)."""
     if not hashed:
         return True
-    return verify_password(password, hashed)
+    return await verify_password(password, hashed)
 
 
 def to_link_read(link: Link, base_url: str) -> LinkRead:

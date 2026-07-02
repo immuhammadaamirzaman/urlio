@@ -1,7 +1,8 @@
 """Security primitives: password hashing, JWT tokens, link-password grants, IP hashing.
 
-Pure functions only — no database or Redis access lives here. Refresh-token revocation
-state is managed in :mod:`app.services.auth` using Redis.
+No database or Redis access lives here. CPU-bound argon2/bcrypt work runs in a
+threadpool so it never blocks the event loop. Refresh-token revocation state is
+managed in :mod:`app.services.auth` using Redis.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import bcrypt
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
+from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.core.exceptions import InvalidTokenError, TokenExpiredError
@@ -38,13 +40,11 @@ def _now() -> datetime:
 
 
 # --- Password hashing ------------------------------------------------------
-def hash_password(plain: str) -> str:
-    """Hash a password with argon2id."""
+def _hash_password_sync(plain: str) -> str:
     return _argon2_hasher.hash(plain)
 
 
-def verify_password(plain: str, hashed: str | None) -> bool:
-    """Verify a password against an argon2id or bcrypt hash (constant-time)."""
+def _verify_password_sync(plain: str, hashed: str | None) -> bool:
     if not hashed:
         return False
     if hashed.startswith("$argon2"):
@@ -60,10 +60,24 @@ def verify_password(plain: str, hashed: str | None) -> bool:
     return False
 
 
-def dummy_verify() -> None:
-    """Run a verify against a dummy hash to equalize timing for unknown users."""
+def _dummy_verify_sync() -> None:
     with contextlib.suppress(VerifyMismatchError):
         _argon2_hasher.verify(_DUMMY_HASH, "wrong-password")
+
+
+async def hash_password(plain: str) -> str:
+    """Hash a password with argon2id."""
+    return await run_in_threadpool(_hash_password_sync, plain)
+
+
+async def verify_password(plain: str, hashed: str | None) -> bool:
+    """Verify a password against an argon2id or bcrypt hash (constant-time)."""
+    return await run_in_threadpool(_verify_password_sync, plain, hashed)
+
+
+async def dummy_verify() -> None:
+    """Run a verify against a dummy hash to equalize timing for unknown users."""
+    await run_in_threadpool(_dummy_verify_sync)
 
 
 def needs_rehash(hashed: str) -> bool:

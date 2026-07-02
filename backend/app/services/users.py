@@ -25,7 +25,7 @@ async def update_profile(session: AsyncSession, user: User, data: UserUpdate) ->
     if "display_name" in fields:
         user.display_name = fields["display_name"]
     if "password" in fields and fields["password"]:
-        user.hashed_password = hash_password(fields["password"])
+        user.hashed_password = await hash_password(fields["password"])
 
     await session.commit()
     await session.refresh(user)
