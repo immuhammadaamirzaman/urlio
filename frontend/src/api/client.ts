@@ -59,6 +59,11 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
 // could plausibly fix it. (Revoked / inactive-user mean re-login is required instead.)
 const REFRESHABLE_CODES = new Set(["token_expired", "invalid_token"]);
 
+// Codes that mean the session is definitively dead and must be dropped (forcing a
+// re-login). Any OTHER non-refreshable 401 — e.g. `invalid_password` from a step-up
+// re-auth check like delete-account — must NOT clear the session.
+const SESSION_ENDED_CODES = new Set(["token_revoked", "inactive_user"]);
+
 let refreshInFlight: Promise<boolean> | null = null;
 
 /** Refresh the access token using the stored refresh token. Single-flight across callers. */
@@ -137,24 +142,26 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 
   // Attempt a single transparent refresh + retry on a refreshable 401.
   if (res.status === 401 && opts.auth !== false && tokenStore.getRefresh()) {
-    // An unparseable body is treated as refreshable so a flaky proxy response doesn't
-    // skip the refresh attempt.
     const code = await peek401Code(res);
-    if (code !== null && !REFRESHABLE_CODES.has(code)) {
-      // Revoked token / inactive user: no refresh can fix this, so drop the session.
-      // AuthContext subscribes to the store and ProtectedRoute redirects to login.
-      tokenStore.clear();
-    } else if (await refreshAccessToken()) {
-      res = await doFetch(path, opts);
-      if (res.status === 401) {
-        // The retry can still 401 non-refreshably (e.g. the account was deactivated
-        // between refresh and retry) — treat that the same as above.
-        const retryCode = await peek401Code(res);
-        if (retryCode !== null && !REFRESHABLE_CODES.has(retryCode)) {
-          tokenStore.clear();
+    if (code === null || REFRESHABLE_CODES.has(code)) {
+      // The access token may be stale — try one transparent refresh + retry. (An
+      // unparseable body is treated as refreshable so a flaky proxy response still retries.)
+      if (await refreshAccessToken()) {
+        res = await doFetch(path, opts);
+        if (res.status === 401) {
+          const retryCode = await peek401Code(res);
+          if (retryCode !== null && SESSION_ENDED_CODES.has(retryCode)) {
+            tokenStore.clear();
+          }
         }
       }
+    } else if (SESSION_ENDED_CODES.has(code)) {
+      // The session is definitively dead (revoked / inactive) — drop it so AuthContext's
+      // store subscriber clears the user and ProtectedRoute redirects to login.
+      tokenStore.clear();
     }
+    // Any other non-refreshable 401 (e.g. `invalid_password` on a re-auth check) leaves
+    // the session intact and surfaces below as a normal ApiError.
   }
 
   if (!res.ok) {
