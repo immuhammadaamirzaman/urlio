@@ -81,6 +81,16 @@ def link_password_grant_key(code: str, grant_id: str) -> str:
     return f"linkpw:grant:{code}:{grant_id}"
 
 
+def password_reset_key(jti: str) -> str:
+    """Marker for an outstanding (unused) password-reset token; enables single use."""
+    return f"pwreset:{jti}"
+
+
+def email_change_key(jti: str) -> str:
+    """Marker for an outstanding (unused) email-change token; enables single use."""
+    return f"emailchange:{jti}"
+
+
 def rate_limit_key(scope: str, identifier: str, window_start: int) -> str:
     return f"rl:{scope}:{identifier}:{window_start}"
 

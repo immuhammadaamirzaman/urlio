@@ -46,6 +46,25 @@ def _grant_token(request: Request, code: str) -> str | None:
     return request.cookies.get(f"linkpw_{code}") or request.headers.get("x-link-grant")
 
 
+def _client_country(request: Request) -> str | None:
+    """Extract a visitor country from the configured CDN/proxy header.
+
+    Returns a normalized ISO 3166-1 alpha-2 code, or None when the feature is disabled,
+    the header is absent, or the value isn't a plausible country code (e.g. Cloudflare's
+    "XX"/"T1" sentinels for unknown/Tor).
+    """
+    header = settings.COUNTRY_HEADER
+    if not header:
+        return None
+    raw = request.headers.get(header)
+    if not raw:
+        return None
+    code = raw.strip().upper()
+    if len(code) != 2 or not code.isalpha() or code == "XX":
+        return None
+    return code
+
+
 def _schedule_click(
     background: BackgroundTasks, request: Request, redis: Redis, link_id
 ) -> None:
@@ -56,7 +75,7 @@ def _schedule_click(
         referrer=request.headers.get("referer"),
         user_agent=request.headers.get("user-agent"),
         ip_hash=hash_ip(client_ip(request)),
-        country=None,
+        country=_client_country(request),
     )
 
 

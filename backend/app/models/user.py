@@ -21,6 +21,12 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
+    is_superuser: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     links: Mapped[list[Link]] = relationship(

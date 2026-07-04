@@ -116,14 +116,22 @@ def _base_claims(sub: str, *, token_type: str, expires: datetime, issued: dateti
 
 
 def create_access_token(
-    user_id: str | uuid.UUID, *, expires_delta: timedelta | None = None
+    user_id: str | uuid.UUID,
+    *,
+    sid: str | None = None,
+    expires_delta: timedelta | None = None,
 ) -> tuple[str, str]:
-    """Create a signed access token. Returns ``(token, jti)``."""
+    """Create a signed access token. Returns ``(token, jti)``.
+
+    ``sid`` binds the token to a session (the refresh-token jti) so it can be revoked.
+    """
     issued = _now()
     expires = issued + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     claims = _base_claims(str(user_id), token_type="access", expires=expires, issued=issued)
+    if sid is not None:
+        claims["sid"] = sid
     return _encode(claims), claims["jti"]
 
 
@@ -161,6 +169,38 @@ def decode_token(
     if expected_type is not None and payload.type != expected_type:
         raise InvalidTokenError("Unexpected token type.")
     return payload
+
+
+# --- Action tokens (email verification, password reset, email change) ------
+def create_verify_email_token(user_id: str | uuid.UUID) -> str:
+    """Create a single-use email-verification token."""
+    issued = _now()
+    expires = issued + timedelta(hours=settings.EMAIL_VERIFY_TOKEN_EXPIRE_HOURS)
+    claims = _base_claims(
+        str(user_id), token_type="verify_email", expires=expires, issued=issued
+    )
+    return _encode(claims)
+
+
+def create_password_reset_token(user_id: str | uuid.UUID) -> str:
+    """Create a single-use password-reset token."""
+    issued = _now()
+    expires = issued + timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    claims = _base_claims(
+        str(user_id), token_type="reset_password", expires=expires, issued=issued
+    )
+    return _encode(claims)
+
+
+def create_email_change_token(user_id: str | uuid.UUID, new_email: str) -> str:
+    """Create a single-use token authorizing a change to ``new_email``."""
+    issued = _now()
+    expires = issued + timedelta(hours=settings.EMAIL_CHANGE_TOKEN_EXPIRE_HOURS)
+    claims = _base_claims(
+        str(user_id), token_type="email_change", expires=expires, issued=issued
+    )
+    claims["email"] = new_email
+    return _encode(claims)
 
 
 # --- Link password grants --------------------------------------------------
