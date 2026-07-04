@@ -133,23 +133,44 @@ export function LinkDetailPage() {
         )}
       </div>
 
-      {/* Top referrers */}
-      <div className="card p-5">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Top referrers</h2>
-        {stats.data && stats.data.top_referrers.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
-            {stats.data.top_referrers.map((r, i) => (
-              <li key={i} className="flex items-center justify-between py-2 text-sm">
-                <span className="truncate text-slate-700">
-                  {r.referrer ? prettyUrl(r.referrer) : "Direct / none"}
-                </span>
-                <span className="font-medium text-slate-900">{formatNumber(r.count)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-4 text-sm text-slate-400">No referrer data yet.</p>
-        )}
+      {/* Top referrers / countries */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card p-5">
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Top referrers</h2>
+          {stats.data && stats.data.top_referrers.length > 0 ? (
+            <ul className="divide-y divide-slate-100">
+              {stats.data.top_referrers.map((r, i) => (
+                <li key={i} className="flex items-center justify-between py-2 text-sm">
+                  <span className="truncate text-slate-700">
+                    {r.referrer ? prettyUrl(r.referrer) : "Direct / none"}
+                  </span>
+                  <span className="font-medium text-slate-900">{formatNumber(r.count)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-4 text-sm text-slate-400">No referrer data yet.</p>
+          )}
+        </div>
+
+        <div className="card p-5">
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Top countries</h2>
+          {stats.data && stats.data.top_countries.length > 0 ? (
+            <ul className="divide-y divide-slate-100">
+              {stats.data.top_countries.map((c) => (
+                <li key={c.country} className="flex items-center justify-between py-2 text-sm">
+                  <span className="text-slate-700">{c.country}</span>
+                  <span className="font-medium text-slate-900">{formatNumber(c.count)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="py-4 text-sm text-slate-400">
+              No country data yet. Country tracking requires a CDN/proxy header
+              (see COUNTRY_HEADER).
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Recent clicks */}

@@ -7,6 +7,8 @@ export interface UserRead {
   email: string;
   display_name: string | null;
   is_active: boolean;
+  is_superuser: boolean;
+  email_verified: boolean;
   created_at: string;
 }
 
@@ -24,6 +26,8 @@ export interface UserLogin {
 export interface UserUpdate {
   display_name?: string | null;
   password?: string | null;
+  // Required by the backend whenever `password` is set.
+  current_password?: string | null;
 }
 
 export interface TokenPair {
@@ -31,6 +35,13 @@ export interface TokenPair {
   refresh_token: string;
   token_type: string;
   expires_in: number;
+}
+
+export interface SessionRead {
+  jti: string;
+  created_at: string | null;
+  refreshed_at: string | null;
+  user_agent: string | null;
 }
 
 // --- Links ---
@@ -85,6 +96,11 @@ export interface ReferrerCount {
   count: number;
 }
 
+export interface CountryCount {
+  country: string;
+  count: number;
+}
+
 export interface LinkStats {
   link_id: string;
   code: string;
@@ -94,6 +110,50 @@ export interface LinkStats {
   created_at: string;
   timeseries: TimeBucket[];
   top_referrers: ReferrerCount[];
+  top_countries: CountryCount[];
+}
+
+// --- Admin ---
+export interface AdminUserRead {
+  id: string;
+  email: string;
+  display_name: string | null;
+  is_active: boolean;
+  is_superuser: boolean;
+  email_verified: boolean;
+  link_count: number;
+  created_at: string;
+}
+
+export interface AdminUserUpdate {
+  is_active: boolean;
+  disable_links?: boolean;
+}
+
+export interface AdminLinkRead extends LinkRead {
+  owner_email: string | null;
+}
+
+export interface AdminStats {
+  total_users: number;
+  active_users: number;
+  total_links: number;
+  active_links: number;
+  total_clicks: number;
+  clicks_last_24h: number;
+  new_users_last_7d: number;
+  new_links_last_7d: number;
+  clicks_per_day: TimeBucket[];
+}
+
+export interface AuditRead {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string;
+  target_id: string;
+  detail: string | null;
+  created_at: string;
 }
 
 // --- Shared ---
