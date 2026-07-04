@@ -9,7 +9,7 @@ else
 BIN := $(VENV)/bin
 endif
 
-.PHONY: help install dev run migrate revision test lint fmt typecheck up down logs
+.PHONY: help install dev run migrate revision test lint fmt typecheck up down logs promote-admin
 
 help:
 	@echo "install   - create venv and install runtime + dev deps"
@@ -21,6 +21,7 @@ help:
 	@echo "fmt       - ruff format + autofix"
 	@echo "typecheck - mypy"
 	@echo "up/down   - docker compose up/down"
+	@echo "promote-admin - grant superuser: make promote-admin EMAIL=you@example.com"
 
 install:
 	$(PYTHON) -m venv $(VENV)
@@ -48,6 +49,9 @@ fmt:
 
 typecheck:
 	$(BIN)/mypy app
+
+promote-admin:
+	$(BIN)/python -m app.cli promote-admin $(EMAIL)
 
 up:
 	docker compose up -d --build

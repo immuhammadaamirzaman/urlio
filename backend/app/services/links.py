@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime
 
 from redis.asyncio import Redis
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -133,23 +133,50 @@ async def get_link_for_owner(
     return link
 
 
+# Whitelisted sort columns for list_links (never sort by arbitrary client input).
+_SORTABLE_COLUMNS = {
+    "created_at": Link.created_at,
+    "click_count": Link.click_count,
+    "last_clicked_at": Link.last_clicked_at,
+}
+
+
 async def list_links(
     session: AsyncSession,
     owner_id: uuid.UUID,
     *,
     limit: int,
     offset: int,
+    q: str | None = None,
+    sort: str = "created_at",
+    order: str = "desc",
+    is_active: bool | None = None,
     cursor: str | None = None,
 ) -> tuple[list[Link], int]:
-    """List a user's links, newest first, with the total count. (Offset pagination; the
-    ``cursor`` parameter is reserved for a future keyset implementation.)"""
-    total = await session.scalar(
-        select(func.count()).select_from(Link).where(Link.owner_id == owner_id)
-    )
+    """List a user's links with search, filtering, and sorting, plus the total count.
+
+    ``q`` matches the short code or target URL (case-insensitive substring). (Offset
+    pagination; the ``cursor`` parameter is reserved for a future keyset implementation.)
+    """
+    filters: list[ColumnElement[bool]] = [Link.owner_id == owner_id]
+    if q and q.strip():
+        pattern = f"%{q.strip()}%"
+        filters.append(Link.code.ilike(pattern) | Link.target_url.ilike(pattern))
+    if is_active is not None:
+        filters.append(Link.is_active.is_(is_active))
+
+    total = await session.scalar(select(func.count()).select_from(Link).where(*filters))
+
+    column = _SORTABLE_COLUMNS.get(sort, Link.created_at)
+    direction = column.asc() if order == "asc" else column.desc()
+    if sort == "last_clicked_at":
+        # Never-clicked links sort after clicked ones regardless of direction/dialect.
+        direction = direction.nullslast()
+
     result = await session.execute(
         select(Link)
-        .where(Link.owner_id == owner_id)
-        .order_by(Link.created_at.desc(), Link.id.desc())
+        .where(*filters)
+        .order_by(direction, Link.id.desc())
         .limit(limit)
         .offset(offset)
     )

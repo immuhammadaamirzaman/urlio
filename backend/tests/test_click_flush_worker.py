@@ -56,6 +56,29 @@ async def test_flush_once_returns_zero_on_empty_stream(db_session, fake_redis):
     assert await _flush_once(db_session, fake_redis) == 0
 
 
+async def test_flush_skips_clicks_of_deleted_links(db_session, fake_redis):
+    """Queued clicks for a since-deleted link must be acked, not poison the batch."""
+    kept = await _make_link(db_session, code="kept123")
+    doomed = await _make_link(db_session, code="doomed1")
+
+    await record_click(fake_redis, link_id=kept.id, referrer=None, user_agent=None, ip_hash=None)
+    await record_click(fake_redis, link_id=doomed.id, referrer=None, user_agent=None, ip_hash=None)
+
+    await db_session.delete(doomed)
+    await db_session.commit()
+
+    # Both events are consumed and acked; only the surviving link gets a row.
+    assert await _flush_once(db_session, fake_redis) == 2
+    total = await db_session.scalar(select(func.count()).select_from(Click))
+    assert total == 1
+
+    await db_session.refresh(kept)
+    assert kept.click_count == 1
+
+    # Nothing left pending — the doomed event did not wedge the stream.
+    assert await _flush_once(db_session, fake_redis) == 0
+
+
 async def test_worker_task_cancels_cleanly(monkeypatch):
     first_pass = asyncio.Event()
 

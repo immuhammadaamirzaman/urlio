@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Awaitable
+from typing import TypeVar, cast
 
 from redis.asyncio import ConnectionPool, Redis
 
@@ -15,6 +17,14 @@ from app.core.config import settings
 
 _pool: ConnectionPool | None = None
 _client: Redis | None = None
+
+T = TypeVar("T")
+
+
+async def redis_await(result: Awaitable[T] | T) -> T:
+    """Await a redis-py command. The async client always returns an awaitable, but its
+    stubs advertise ``Awaitable[T] | T`` (shared with the sync client), confusing mypy."""
+    return await cast("Awaitable[T]", result)
 
 
 def get_redis_pool() -> ConnectionPool:
@@ -79,6 +89,18 @@ def refresh_user_set_key(user_id: str | uuid.UUID) -> str:
 
 def link_password_grant_key(code: str, grant_id: str) -> str:
     return f"linkpw:grant:{code}:{grant_id}"
+
+
+def password_reset_key(token_hash: str) -> str:
+    return f"pwreset:{token_hash}"
+
+
+def email_verify_key(token_hash: str) -> str:
+    return f"emailverify:{token_hash}"
+
+
+def email_change_key(token_hash: str) -> str:
+    return f"emailchange:{token_hash}"
 
 
 def rate_limit_key(scope: str, identifier: str, window_start: int) -> str:

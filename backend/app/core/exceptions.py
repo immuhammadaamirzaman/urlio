@@ -98,6 +98,46 @@ class InactiveUserError(AppError):
     message = "This account is inactive."
 
 
+# 400 (not 401) so API clients don't mistake it for an expired session and
+# trigger a token refresh; the bearer token on the request is perfectly valid.
+class InvalidCurrentPasswordError(AppError):
+    status_code = 400
+    code = "invalid_current_password"
+    message = "Current password is incorrect."
+
+
+# --- Email-driven account flows ---------------------------------------------
+class InvalidResetTokenError(AppError):
+    status_code = 400
+    code = "invalid_reset_token"
+    message = "This password reset link is invalid or has expired."
+
+
+class InvalidVerificationTokenError(AppError):
+    status_code = 400
+    code = "invalid_verification_token"
+    message = "This verification link is invalid or has expired."
+
+
+class InvalidEmailChangeTokenError(AppError):
+    status_code = 400
+    code = "invalid_email_change_token"
+    message = "This email change link is invalid or has expired."
+
+
+# --- Admin -------------------------------------------------------------------
+class AdminRequiredError(AppError):
+    status_code = 403
+    code = "admin_required"
+    message = "Administrator privileges are required."
+
+
+class CannotModifySuperuserError(AppError):
+    status_code = 403
+    code = "cannot_modify_superuser"
+    message = "Superuser accounts cannot be modified via the admin API."
+
+
 # --- Links / shortcodes ----------------------------------------------------
 class AliasConflictError(AppError):
     status_code = 409

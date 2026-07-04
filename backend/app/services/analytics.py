@@ -21,7 +21,7 @@ from app.cache.redis import click_count_key
 from app.core.config import settings
 from app.models.click import Click
 from app.models.link import Link
-from app.schemas.analytics import LinkStats, ReferrerCount, TimeBucket
+from app.schemas.analytics import CountryCount, LinkStats, ReferrerCount, TimeBucket
 
 logger = logging.getLogger("shortlyx.analytics")
 
@@ -100,8 +100,17 @@ async def flush_click_stream(
             last_clicked[link_id] = clicked_at if prev is None else max(prev, clicked_at)
 
     if rows:
+        # Links can be deleted (takedowns, account deletion) while their click events
+        # are still queued; inserting those rows would FK-fail and poison the whole
+        # batch (xreadgroup(">") never re-delivers unacked messages). Drop them.
+        existing_ids = set(
+            (await session.scalars(select(Link.id).where(Link.id.in_(counts)))).all()
+        )
+        rows = [row for row in rows if row.link_id in existing_ids]
         session.add_all(rows)
         for link_id, count in counts.items():
+            if link_id not in existing_ids:
+                continue
             await session.execute(
                 update(Link)
                 .where(Link.id == link_id)
@@ -169,6 +178,17 @@ async def get_link_stats(
     ).all()
     top_referrers = [ReferrerCount(referrer=row.referrer, count=row.cnt) for row in ref_rows]
 
+    country_rows = (
+        await session.execute(
+            select(Click.country, func.count().label("cnt"))
+            .where(Click.link_id == link.id, Click.country.is_not(None))
+            .group_by(Click.country)
+            .order_by(func.count().desc())
+            .limit(10)
+        )
+    ).all()
+    top_countries = [CountryCount(country=row.country, count=row.cnt) for row in country_rows]
+
     return LinkStats(
         link_id=link.id,
         code=link.code,
@@ -178,6 +198,7 @@ async def get_link_stats(
         created_at=link.created_at,
         timeseries=timeseries,
         top_referrers=top_referrers,
+        top_countries=top_countries,
     )
 
 

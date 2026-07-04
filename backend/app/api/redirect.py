@@ -46,6 +46,17 @@ def _grant_token(request: Request, code: str) -> str | None:
     return request.cookies.get(f"linkpw_{code}") or request.headers.get("x-link-grant")
 
 
+def _country_from(request: Request) -> str | None:
+    """Visitor country from the configured proxy/CDN header (None when disabled)."""
+    if not settings.COUNTRY_HEADER:
+        return None
+    value = (request.headers.get(settings.COUNTRY_HEADER) or "").strip().upper()
+    # "XX" is the common "unknown" sentinel (e.g. Cloudflare); store as no data.
+    if len(value) == 2 and value.isalpha() and value != "XX":
+        return value
+    return None
+
+
 def _schedule_click(
     background: BackgroundTasks, request: Request, redis: Redis, link_id
 ) -> None:
@@ -56,7 +67,7 @@ def _schedule_click(
         referrer=request.headers.get("referer"),
         user_agent=request.headers.get("user-agent"),
         ip_hash=hash_ip(client_ip(request)),
-        country=None,
+        country=_country_from(request),
     )
 
 

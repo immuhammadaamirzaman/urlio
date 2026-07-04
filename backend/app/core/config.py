@@ -76,6 +76,21 @@ class Settings(BaseSettings):
     CLICK_FLUSH_ENABLED: bool = True
     CLICK_FLUSH_INTERVAL_SECONDS: float = 5.0
 
+    # --- Email ---
+    # "console" logs outbound mail (dev default); "smtp" sends via the SMTP_* settings.
+    EMAIL_BACKEND: str = "console"
+    EMAIL_FROM: str = "ShortlyX <no-reply@localhost>"
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_STARTTLS: bool = True
+    # Public URL of the SPA; used to build links inside emails.
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
+    RESET_TOKEN_EXPIRE_MINUTES: int = 30
+    EMAIL_VERIFY_TOKEN_EXPIRE_HOURS: int = 48
+    EMAIL_CHANGE_TOKEN_EXPIRE_MINUTES: int = 60
+
     # --- Security / JWT ---
     SECRET_KEY: str = _DEFAULT_SECRET_KEY
     JWT_ALGORITHM: str = "HS256"
@@ -118,6 +133,10 @@ class Settings(BaseSettings):
 
     # --- Redirect ---
     REDIRECT_STATUS_CODE: int = 307
+    # Header holding the visitor's ISO 3166-1 alpha-2 country, stamped by a trusted
+    # CDN/proxy (e.g. "CF-IPCountry" on Cloudflare). Empty disables country tracking.
+    # Only enable behind infrastructure you control that strips client-sent values.
+    COUNTRY_HEADER: str = ""
 
     # --- CORS / headers ---
     CORS_ORIGINS: CSVList = ["*"]
@@ -164,6 +183,10 @@ class Settings(BaseSettings):
                 "CORS_ALLOW_CREDENTIALS=true requires an explicit CORS_ORIGINS list; "
                 'a wildcard ("*") origin would grant any website credentialed access.'
             )
+        if self.EMAIL_BACKEND not in ("console", "smtp"):
+            raise ValueError('EMAIL_BACKEND must be "console" or "smtp".')
+        if self.EMAIL_BACKEND == "smtp" and not self.SMTP_HOST:
+            raise ValueError("EMAIL_BACKEND=smtp requires SMTP_HOST to be set.")
         return self
 
     @model_validator(mode="after")
