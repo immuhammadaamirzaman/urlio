@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
+from typing import Literal
 
 from redis.asyncio import Redis
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -133,6 +134,15 @@ async def get_link_for_owner(
     return link
 
 
+LinkSort = Literal["created_at", "click_count", "last_clicked_at"]
+
+_SORT_COLUMNS = {
+    "created_at": Link.created_at,
+    "click_count": Link.click_count,
+    "last_clicked_at": Link.last_clicked_at,
+}
+
+
 async def list_links(
     session: AsyncSession,
     owner_id: uuid.UUID,
@@ -140,16 +150,36 @@ async def list_links(
     limit: int,
     offset: int,
     cursor: str | None = None,
+    q: str | None = None,
+    sort: LinkSort = "created_at",
+    order: Literal["asc", "desc"] = "desc",
+    is_active: bool | None = None,
 ) -> tuple[list[Link], int]:
-    """List a user's links, newest first, with the total count. (Offset pagination; the
-    ``cursor`` parameter is reserved for a future keyset implementation.)"""
+    """List a user's links with optional search/status filters and sorting, plus the total
+    count of matching rows. (Offset pagination; the ``cursor`` parameter is reserved for a
+    future keyset implementation.)"""
+    filters = [Link.owner_id == owner_id]
+    if is_active is not None:
+        filters.append(Link.is_active == is_active)
+    if q:
+        pattern = f"%{q}%"
+        filters.append(or_(Link.code.ilike(pattern), Link.target_url.ilike(pattern)))
+
     total = await session.scalar(
-        select(func.count()).select_from(Link).where(Link.owner_id == owner_id)
+        select(func.count()).select_from(Link).where(*filters)
     )
+
+    sort_column = _SORT_COLUMNS.get(sort, Link.created_at)
+    asc = order == "asc"
+    # NULLs (e.g. never-clicked links sorted by last_clicked_at) always sort last. The id
+    # tiebreaker follows the sort direction so rows tied on the sort column keep a stable,
+    # fully-reversible order across offset pages.
+    primary = sort_column.asc() if asc else sort_column.desc()
+    tiebreaker = Link.id.asc() if asc else Link.id.desc()
     result = await session.execute(
         select(Link)
-        .where(Link.owner_id == owner_id)
-        .order_by(Link.created_at.desc(), Link.id.desc())
+        .where(*filters)
+        .order_by(primary.nullslast(), tiebreaker)
         .limit(limit)
         .offset(offset)
     )

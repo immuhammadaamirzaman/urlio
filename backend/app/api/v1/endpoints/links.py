@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,6 +55,12 @@ async def list_my_links(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
     pagination: PaginationParams = Depends(get_pagination),
+    q: str | None = Query(default=None, max_length=255),
+    sort: Literal["created_at", "click_count", "last_clicked_at"] = Query(
+        default="created_at"
+    ),
+    order: Literal["asc", "desc"] = Query(default="desc"),
+    is_active: bool | None = Query(default=None),
 ) -> Page[LinkRead]:
     rows, total = await list_links(
         session,
@@ -61,6 +68,10 @@ async def list_my_links(
         limit=pagination.limit,
         offset=pagination.offset,
         cursor=pagination.cursor,
+        q=q.strip() if q else None,
+        sort=sort,
+        order=order,
+        is_active=is_active,
     )
     return Page[LinkRead](
         items=[to_link_read(link, settings.BASE_URL) for link in rows],

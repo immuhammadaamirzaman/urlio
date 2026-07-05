@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache.redis import get_redis
 from app.core.config import settings
-from app.core.exceptions import AppError, RateLimitExceededError
+from app.core.exceptions import AppError, NotAuthorizedError, RateLimitExceededError
 from app.core.ratelimit import check_rate_limit
 from app.db.session import get_session
 from app.models.user import User
@@ -38,22 +38,31 @@ async def get_redis_dep() -> Redis:
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     session: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis_dep),
 ) -> User:
     """Resolve the authenticated user; raises 401 if the token is missing/invalid."""
-    return await resolve_current_user(session, credentials.credentials)
+    return await resolve_current_user(session, redis, credentials.credentials)
 
 
 async def get_optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
     session: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis_dep),
 ) -> User | None:
     """Resolve the user if a valid token is present; otherwise treat as anonymous."""
     if credentials is None:
         return None
     try:
-        return await resolve_current_user(session, credentials.credentials)
+        return await resolve_current_user(session, redis, credentials.credentials)
     except AppError:
         return None
+
+
+async def get_current_superuser(user: User = Depends(get_current_user)) -> User:
+    """Require the authenticated user to be a superuser (admin-only endpoints)."""
+    if not user.is_superuser:
+        raise NotAuthorizedError()
+    return user
 
 
 def get_pagination(

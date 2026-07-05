@@ -88,6 +88,28 @@ async def client(engine, fake_redis):
 
 
 @pytest.fixture
+def captured_emails(monkeypatch):
+    """Capture transactional emails (and their tokens) instead of sending them.
+
+    Patches the senders where ``app.services.auth`` imported them, so the real flows run
+    but the token is available to the test.
+    """
+    sent: list[dict] = []
+
+    def _make(kind: str):
+        async def _fn(to: str, token: str) -> bool:
+            sent.append({"kind": kind, "to": to, "token": token})
+            return True
+
+        return _fn
+
+    monkeypatch.setattr("app.services.auth.send_verification_email", _make("verify"))
+    monkeypatch.setattr("app.services.auth.send_password_reset_email", _make("reset"))
+    monkeypatch.setattr("app.services.auth.send_email_change_email", _make("email_change"))
+    return sent
+
+
+@pytest.fixture
 def register_and_login(client):
     """Return an async helper that registers + logs in a user and returns auth headers."""
 

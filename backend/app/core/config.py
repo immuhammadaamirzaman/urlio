@@ -84,6 +84,26 @@ class Settings(BaseSettings):
     JWT_ISSUER: str = "shortlyx"
     JWT_AUDIENCE: str = "shortlyx-api"
     LINK_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 30
+    # Single-use action tokens (email verification, password reset, email change).
+    EMAIL_VERIFY_TOKEN_EXPIRE_HOURS: int = 24
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
+    EMAIL_CHANGE_TOKEN_EXPIRE_HOURS: int = 24
+
+    # --- Email / SMTP ---
+    # Public base URL of the frontend; used to build links in transactional emails.
+    FRONTEND_URL: str = "http://localhost:5173"
+    EMAIL_FROM: str = "no-reply@shortlyx.local"
+    EMAIL_FROM_NAME: str = "ShortlyX"
+    # SMTP transport. When SMTP_HOST is empty, email sending is disabled: the message is
+    # logged instead of sent, so registration/reset flows still work in dev without a
+    # mail server. Configure these in production to actually deliver mail.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = True  # STARTTLS on a plaintext port (e.g. 587)
+    SMTP_USE_SSL: bool = False  # implicit TLS (e.g. 465)
+    SMTP_TIMEOUT_SECONDS: int = 10
 
     # --- Password hashing ---
     ARGON2_TIME_COST: int = 3
@@ -118,6 +138,10 @@ class Settings(BaseSettings):
 
     # --- Redirect ---
     REDIRECT_STATUS_CODE: int = 307
+    # Request header carrying the visitor's ISO 3166-1 alpha-2 country code, set by a CDN
+    # or reverse proxy (e.g. Cloudflare's "CF-IPCountry"). Empty disables country capture;
+    # only enable it when a trusted upstream sets the header, since clients can forge it.
+    COUNTRY_HEADER: str = ""
 
     # --- CORS / headers ---
     CORS_ORIGINS: CSVList = ["*"]
@@ -189,6 +213,11 @@ class Settings(BaseSettings):
     @property
     def refresh_token_expire_seconds(self) -> int:
         return self.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+
+    @property
+    def email_enabled(self) -> bool:
+        """Whether a real SMTP transport is configured (else email is logged only)."""
+        return bool(self.SMTP_HOST)
 
 
 @lru_cache
