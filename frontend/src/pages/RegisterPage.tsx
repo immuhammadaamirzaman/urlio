@@ -53,7 +53,7 @@ export function RegisterPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/login" className="font-medium text-brand-600 hover:underline">
+          <Link to="/login" className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
             Sign in
           </Link>
         </>
@@ -76,7 +76,7 @@ export function RegisterPage() {
         </div>
         <div>
           <label className="label" htmlFor="display_name">
-            Display name <span className="font-normal text-slate-400">(optional)</span>
+            Display name <span className="font-normal text-content-subtle">(optional)</span>
           </label>
           <input
             id="display_name"
@@ -103,10 +103,10 @@ export function RegisterPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="input"
           />
-          <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
+          <p className="mt-1 text-xs text-content-muted">At least 8 characters.</p>
         </div>
 
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
 
         <button type="submit" disabled={submitting} className="btn-primary w-full">
           {submitting ? <Spinner className="h-4 w-4" /> : null}

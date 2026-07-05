@@ -125,7 +125,7 @@ export function AdminLinksTab() {
           <div className="card overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-content-muted">
                   <th className="px-4 py-3 font-medium">Link</th>
                   <th className="px-4 py-3 font-medium">Owner</th>
                   <th className="px-4 py-3 font-medium">Clicks</th>
@@ -134,36 +134,36 @@ export function AdminLinksTab() {
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {links.data.items.map((l) => (
-                  <tr key={l.id} className="text-slate-700">
+                  <tr key={l.id} className="text-content">
                     <td className="max-w-[20rem] px-4 py-3">
                       <a
                         href={l.short_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-medium text-brand-700 hover:underline"
+                        className="font-medium text-brand-700 hover:underline dark:text-brand-300"
                       >
                         /{l.code}
                       </a>
-                      <p className="truncate text-xs text-slate-500" title={l.target_url}>
+                      <p className="truncate text-xs text-content-muted" title={l.target_url}>
                         → {prettyUrl(l.target_url)}
                       </p>
                     </td>
                     <td className="max-w-[12rem] truncate px-4 py-3">
                       {l.owner_email ?? (
-                        <span className="text-slate-400">anonymous</span>
+                        <span className="text-content-subtle">anonymous</span>
                       )}
                     </td>
                     <td className="px-4 py-3">{formatNumber(l.click_count)}</td>
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(l.created_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3">
                       {l.is_active ? (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                           Active
                         </span>
                       ) : (
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">
                           Disabled
                         </span>
                       )}
@@ -211,7 +211,7 @@ export function AdminLinksTab() {
       >
         {deleting && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-content-muted">
               <strong>/{deleting.code}</strong> → {prettyUrl(deleting.target_url)} and its
               click history will be permanently removed. The short URL stops working
               immediately.

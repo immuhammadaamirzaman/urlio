@@ -28,8 +28,8 @@ function VerifyEmailBanner() {
   }
 
   return (
-    <div className="border-b border-amber-200 bg-amber-50">
-      <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-4 py-2 text-center text-sm text-amber-800">
+    <div className="border-b border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10">
+      <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-4 py-2 text-center text-sm text-amber-800 dark:text-amber-200">
         <span>
           Please verify <strong>{user.email}</strong> to secure your account.
         </span>
@@ -37,7 +37,7 @@ function VerifyEmailBanner() {
           type="button"
           onClick={handleResend}
           disabled={sending}
-          className="font-medium underline hover:text-amber-900 disabled:opacity-50"
+          className="font-medium underline hover:text-amber-900 disabled:opacity-50 dark:hover:text-amber-100"
         >
           {sending ? "Sending…" : "Resend email"}
         </button>
@@ -54,8 +54,8 @@ export function Layout() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <Outlet />
       </main>
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-slate-400">
+      <footer className="border-t border-border bg-surface">
+        <div className="mx-auto max-w-6xl px-4 py-6 text-center text-xs text-content-subtle">
           ShortlyX — a fast, self-hosted URL shortener.
         </div>
       </footer>

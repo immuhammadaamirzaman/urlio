@@ -75,8 +75,8 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Your links</h1>
-          <p className="text-sm text-slate-500">Manage, edit, and track your short links.</p>
+          <h1 className="text-2xl font-bold text-content">Your links</h1>
+          <p className="text-sm text-content-muted">Manage, edit, and track your short links.</p>
         </div>
         <button type="button" onClick={() => setCreating(true)} className="btn-primary">
           + New link

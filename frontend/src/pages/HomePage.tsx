@@ -17,10 +17,10 @@ export function HomePage() {
   return (
     <div className="mx-auto max-w-3xl">
       <section className="py-8 text-center sm:py-12">
-        <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-          Shorten links. <span className="text-brand-600">Track clicks.</span>
+        <h1 className="text-4xl font-extrabold tracking-tight text-content sm:text-5xl">
+          Shorten links. <span className="text-brand-600 dark:text-brand-400">Track clicks.</span>
         </h1>
-        <p className="mx-auto mt-4 max-w-xl text-lg text-slate-600">
+        <p className="mx-auto mt-4 max-w-xl text-lg text-content-muted">
           Paste a long URL to get a short link instantly. Create an account to manage your
           links and see detailed analytics.
         </p>
@@ -32,7 +32,7 @@ export function HomePage() {
 
       {recent.length > 0 && (
         <section className="mt-6 space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-content-muted">
             Your new links
           </h2>
           {recent.map((link) => (
@@ -40,8 +40,8 @@ export function HomePage() {
           ))}
 
           {!isAuthenticated && (
-            <p className="pt-2 text-center text-sm text-slate-500">
-              <Link to="/register" className="font-medium text-brand-600 hover:underline">
+            <p className="pt-2 text-center text-sm text-content-muted">
+              <Link to="/register" className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
                 Create a free account
               </Link>{" "}
               to keep these links and unlock analytics.
@@ -66,8 +66,8 @@ export function HomePage() {
           },
         ].map((f) => (
           <div key={f.title} className="card p-5">
-            <h3 className="font-semibold text-slate-900">{f.title}</h3>
-            <p className="mt-1 text-sm text-slate-600">{f.body}</p>
+            <h3 className="font-semibold text-content">{f.title}</h3>
+            <p className="mt-1 text-sm text-content-muted">{f.body}</p>
           </div>
         ))}
       </section>

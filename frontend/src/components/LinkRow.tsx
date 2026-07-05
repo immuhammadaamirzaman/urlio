@@ -44,18 +44,18 @@ export function LinkRow({ link, onChanged, onDeleted }: LinkRowProps) {
             href={link.short_url}
             target="_blank"
             rel="noreferrer"
-            className="truncate font-semibold text-brand-700 hover:underline"
+            className="truncate font-semibold text-brand-700 hover:underline dark:text-brand-300"
           >
             {prettyUrl(link.short_url)}
           </a>
           <CopyButton value={link.short_url} className="!px-2 !py-1" />
         </div>
-        <p className="mt-0.5 truncate text-sm text-slate-500" title={link.target_url}>
+        <p className="mt-0.5 truncate text-sm text-content-muted" title={link.target_url}>
           → {link.target_url}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <LinkStatusBadges link={link} />
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-content-muted">
             {formatNumber(link.click_count)} clicks · last {timeAgo(link.last_clicked_at)}
           </span>
         </div>
@@ -95,7 +95,7 @@ export function LinkRow({ link, onChanged, onDeleted }: LinkRowProps) {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="btn-ghost text-xs text-red-600 hover:bg-red-50"
+            className="btn-ghost text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/15"
           >
             Delete
           </button>

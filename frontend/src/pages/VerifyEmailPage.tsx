@@ -50,27 +50,27 @@ export function VerifyEmailPage() {
       title="Email verification"
       subtitle="Confirming your address…"
       footer={
-        <Link to={isAuthenticated ? "/dashboard" : "/login"} className="font-medium text-brand-600 hover:underline">
+        <Link to={isAuthenticated ? "/dashboard" : "/login"} className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
           {isAuthenticated ? "Back to dashboard" : "Sign in"}
         </Link>
       }
     >
       {status === "verifying" && (
-        <div className="flex items-center gap-3 text-sm text-slate-600">
-          <Spinner className="h-5 w-5 text-brand-600" />
+        <div className="flex items-center gap-3 text-sm text-content-muted">
+          <Spinner className="h-5 w-5 text-brand-600 dark:text-brand-400" />
           Verifying your email address…
         </div>
       )}
       {status === "success" && (
         <div className="space-y-2 text-sm">
-          <p className="font-medium text-emerald-700">✓ Your email address is verified.</p>
-          <p className="text-slate-600">You&apos;re all set — thanks for confirming.</p>
+          <p className="font-medium text-emerald-700 dark:text-emerald-300">✓ Your email address is verified.</p>
+          <p className="text-content-muted">You&apos;re all set — thanks for confirming.</p>
         </div>
       )}
       {status === "error" && (
         <div className="space-y-2 text-sm">
-          <p className="font-medium text-red-600">{error}</p>
-          <p className="text-slate-600">
+          <p className="font-medium text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-content-muted">
             The link may have expired or already been used. You can request a fresh one
             from Settings.
           </p>

@@ -3,17 +3,58 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Theme tokens. Values are space-separated RGB channels so Tailwind's
+   * `/<alpha-value>` opacity modifiers work (see tailwind.config.js).
+   * `--brand-*` is the accent palette; the ThemeProvider overrides it at runtime
+   * for a chosen preset or custom colour. The defaults below are the "blue" preset.
+   */
+  :root {
+    color-scheme: light;
+
+    --canvas: 248 250 252;
+    --surface: 255 255 255;
+    --surface-muted: 241 245 249;
+    --content: 15 23 42;
+    --content-muted: 71 85 105;
+    --content-subtle: 148 163 184;
+    --border: 226 232 240;
+
+    --brand-50: 238 244 255;
+    --brand-100: 217 230 255;
+    --brand-200: 188 211 255;
+    --brand-300: 142 182 255;
+    --brand-400: 89 141 255;
+    --brand-500: 51 102 255;
+    --brand-600: 31 71 245;
+    --brand-700: 23 53 225;
+    --brand-800: 25 45 182;
+    --brand-900: 26 44 143;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --canvas: 2 6 23;
+    --surface: 15 23 42;
+    --surface-muted: 30 41 59;
+    --content: 241 245 249;
+    --content-muted: 148 163 184;
+    --content-subtle: 100 116 139;
+    --border: 30 41 59;
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-canvas text-content antialiased;
   }
 
   /* Smooth focus rings everywhere. */
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-slate-50;
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-canvas;
   }
 }
 
@@ -26,23 +67,23 @@
     @apply btn bg-brand-600 text-white hover:bg-brand-700;
   }
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100;
+    @apply btn border border-border bg-surface text-content hover:bg-surface-muted;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .btn-ghost {
-    @apply btn text-slate-600 hover:bg-slate-100;
+    @apply btn text-content-muted hover:bg-surface-muted;
   }
 
   .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm
-      placeholder:text-slate-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500;
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-content shadow-sm
+      placeholder:text-content-subtle focus:border-brand-500 focus:ring-1 focus:ring-brand-500;
   }
   .label {
-    @apply mb-1 block text-sm font-medium text-slate-700;
+    @apply mb-1 block text-sm font-medium text-content-muted;
   }
   .card {
-    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply rounded-xl border border-border bg-surface shadow-sm transition-colors;
   }
 }

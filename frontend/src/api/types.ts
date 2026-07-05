@@ -9,6 +9,8 @@ export interface UserRead {
   is_active: boolean;
   is_superuser: boolean;
   email_verified: boolean;
+  theme: string;
+  accent: string;
   created_at: string;
 }
 
@@ -28,6 +30,9 @@ export interface UserUpdate {
   password?: string | null;
   // Required by the backend whenever `password` is set.
   current_password?: string | null;
+  theme?: "light" | "dark" | "system" | null;
+  // Preset key ("blue") or a "#rrggbb" hex.
+  accent?: string | null;
 }
 
 export interface TokenPair {

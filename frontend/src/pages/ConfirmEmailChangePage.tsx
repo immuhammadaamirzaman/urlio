@@ -43,21 +43,21 @@ export function ConfirmEmailChangePage() {
       title="Confirm email change"
       subtitle="Applying your new address…"
       footer={
-        <Link to="/login" className="font-medium text-brand-600 hover:underline">
+        <Link to="/login" className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
           Sign in
         </Link>
       }
     >
       {status === "confirming" && (
-        <div className="flex items-center gap-3 text-sm text-slate-600">
-          <Spinner className="h-5 w-5 text-brand-600" />
+        <div className="flex items-center gap-3 text-sm text-content-muted">
+          <Spinner className="h-5 w-5 text-brand-600 dark:text-brand-400" />
           Confirming your new email address…
         </div>
       )}
       {status === "success" && (
         <div className="space-y-2 text-sm">
-          <p className="font-medium text-emerald-700">✓ Email address updated.</p>
-          <p className="text-slate-600">
+          <p className="font-medium text-emerald-700 dark:text-emerald-300">✓ Email address updated.</p>
+          <p className="text-content-muted">
             For security, every device was signed out. Sign in with your{" "}
             <strong>new</strong> email address and your existing password.
           </p>
@@ -65,8 +65,8 @@ export function ConfirmEmailChangePage() {
       )}
       {status === "error" && (
         <div className="space-y-2 text-sm">
-          <p className="font-medium text-red-600">{error}</p>
-          <p className="text-slate-600">
+          <p className="font-medium text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-content-muted">
             The link may have expired, already been used, or the address may have been
             taken in the meantime. Request the change again from Settings.
           </p>
