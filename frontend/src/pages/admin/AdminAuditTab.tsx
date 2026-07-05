@@ -11,11 +11,11 @@ import { formatDateTime } from "../../lib/format";
 const PAGE_SIZE = 20;
 
 const ACTION_STYLES: Record<string, string> = {
-  "user.deactivate": "bg-red-50 text-red-700",
-  "user.reactivate": "bg-emerald-50 text-emerald-700",
-  "link.disable": "bg-amber-50 text-amber-700",
-  "link.enable": "bg-emerald-50 text-emerald-700",
-  "link.delete": "bg-red-50 text-red-700",
+  "user.deactivate": "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  "user.reactivate": "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  "link.disable": "bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  "link.enable": "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  "link.delete": "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300",
 };
 
 export function AdminAuditTab() {
@@ -36,30 +36,30 @@ export function AdminAuditTab() {
       <div className="card overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-border text-xs uppercase tracking-wide text-content-muted">
               <th className="px-4 py-3 font-medium">When</th>
               <th className="px-4 py-3 font-medium">Action</th>
               <th className="px-4 py-3 font-medium">Target</th>
               <th className="px-4 py-3 font-medium">Detail</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {audit.data.items.map((entry) => (
-              <tr key={entry.id} className="text-slate-700">
+              <tr key={entry.id} className="text-content">
                 <td className="whitespace-nowrap px-4 py-3">
                   {formatDateTime(entry.created_at)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      ACTION_STYLES[entry.action] ?? "bg-slate-100 text-slate-700"
+                      ACTION_STYLES[entry.action] ?? "bg-surface-muted text-content"
                     }`}
                   >
                     {entry.action}
                   </span>
                 </td>
                 <td className="max-w-[16rem] truncate px-4 py-3" title={entry.target_id}>
-                  <span className="text-xs uppercase text-slate-400">{entry.target_type}</span>{" "}
+                  <span className="text-xs uppercase text-content-subtle">{entry.target_type}</span>{" "}
                   {entry.target_id}
                 </td>
                 <td className="max-w-[20rem] truncate px-4 py-3" title={entry.detail ?? ""}>

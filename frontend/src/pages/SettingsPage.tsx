@@ -11,6 +11,7 @@ import {
   revokeSession,
   updateMe,
 } from "../api/users";
+import { AppearanceSettings } from "../components/AppearanceSettings";
 import { Modal } from "../components/Modal";
 import { Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
@@ -158,30 +159,32 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+      <h1 className="text-2xl font-bold text-content">Settings</h1>
+
+      <AppearanceSettings />
 
       {/* Account */}
       <section className="card p-5">
-        <h2 className="text-base font-semibold text-slate-900">Account</h2>
+        <h2 className="text-base font-semibold text-content">Account</h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-slate-500">Email</dt>
-            <dd className="flex items-center gap-2 font-medium text-slate-800">
+            <dt className="text-content-muted">Email</dt>
+            <dd className="flex items-center gap-2 font-medium text-content">
               <span className="truncate">{user.email}</span>
               {user.email_verified ? (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                   Verified
                 </span>
               ) : (
                 <>
-                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                     Unverified
                   </span>
                   <button
                     type="button"
                     onClick={handleResendVerification}
                     disabled={resending}
-                    className="text-xs font-medium text-brand-600 hover:underline disabled:opacity-50"
+                    className="text-xs font-medium text-brand-600 hover:underline disabled:opacity-50 dark:text-brand-400"
                   >
                     {resending ? "Sending…" : "Resend link"}
                   </button>
@@ -190,13 +193,13 @@ export function SettingsPage() {
             </dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-500">Member since</dt>
-            <dd className="font-medium text-slate-800">{formatDate(user.created_at)}</dd>
+            <dt className="text-content-muted">Member since</dt>
+            <dd className="font-medium text-content">{formatDate(user.created_at)}</dd>
           </div>
         </dl>
 
-        <form onSubmit={handleEmailChange} className="mt-5 space-y-4 border-t border-slate-100 pt-4">
-          <h3 className="text-sm font-semibold text-slate-900">Change email</h3>
+        <form onSubmit={handleEmailChange} className="mt-5 space-y-4 border-t border-border pt-4">
+          <h3 className="text-sm font-semibold text-content">Change email</h3>
           <div>
             <label className="label" htmlFor="new_email">
               New email
@@ -224,7 +227,7 @@ export function SettingsPage() {
               onChange={(e) => setEmailPassword(e.target.value)}
               className="input"
             />
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-content-muted">
               We&apos;ll email a confirmation link to the new address; nothing changes
               until it&apos;s confirmed.
             </p>
@@ -238,7 +241,7 @@ export function SettingsPage() {
 
       {/* Profile */}
       <section className="card p-5">
-        <h2 className="text-base font-semibold text-slate-900">Profile</h2>
+        <h2 className="text-base font-semibold text-content">Profile</h2>
         <form onSubmit={handleProfileSave} className="mt-3 space-y-4">
           <div>
             <label className="label" htmlFor="display_name">
@@ -263,7 +266,7 @@ export function SettingsPage() {
 
       {/* Password */}
       <section className="card p-5">
-        <h2 className="text-base font-semibold text-slate-900">Change password</h2>
+        <h2 className="text-base font-semibold text-content">Change password</h2>
         <form onSubmit={handlePasswordSave} className="mt-3 space-y-4">
           <div>
             <label className="label" htmlFor="current_password">
@@ -295,7 +298,7 @@ export function SettingsPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="input"
             />
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-content-muted">
               At least 8 characters. Changing your password signs out every other device.
             </p>
           </div>
@@ -309,7 +312,7 @@ export function SettingsPage() {
       {/* Sessions */}
       <section className="card p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">Active sessions</h2>
+          <h2 className="text-base font-semibold text-content">Active sessions</h2>
           <button
             type="button"
             onClick={handleLogoutAll}
@@ -320,7 +323,7 @@ export function SettingsPage() {
             Sign out everywhere
           </button>
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-content-muted">
           Devices holding a valid sign-in for your account.
         </p>
         {sessions.loading && !sessions.data ? (
@@ -328,26 +331,26 @@ export function SettingsPage() {
             <Spinner className="h-5 w-5 text-brand-600" />
           </div>
         ) : sessions.error ? (
-          <p className="mt-3 text-sm text-red-600">{sessions.error}</p>
+          <p className="mt-3 text-sm text-red-600 dark:text-red-400">{sessions.error}</p>
         ) : (
-          <ul className="mt-3 divide-y divide-slate-100">
+          <ul className="mt-3 divide-y divide-border">
             {(sessions.data ?? []).map((s) => {
               const isCurrent = s.jti === currentJti;
               return (
                 <li key={s.jti} className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p
-                      className="truncate text-sm font-medium text-slate-800"
+                      className="truncate text-sm font-medium text-content"
                       title={s.user_agent ?? undefined}
                     >
                       {s.user_agent ?? "Unknown device"}
                       {isCurrent && (
-                        <span className="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+                        <span className="ml-2 rounded-full bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300">
                           This device
                         </span>
                       )}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-content-muted">
                       {s.created_at ? `Signed in ${formatDate(s.created_at)}` : "Signed in —"}
                       {s.refreshed_at ? ` · active ${timeAgo(s.refreshed_at)}` : ""}
                     </p>
@@ -371,9 +374,9 @@ export function SettingsPage() {
       </section>
 
       {/* Danger zone */}
-      <section className="card border-red-200 p-5">
-        <h2 className="text-base font-semibold text-red-700">Danger zone</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <section className="card border-red-200 p-5 dark:border-red-500/30">
+        <h2 className="text-base font-semibold text-red-700 dark:text-red-400">Danger zone</h2>
+        <p className="mt-1 text-sm text-content-muted">
           Deleting your account permanently removes your profile, every short link you
           own, and all click history. This cannot be undone.
         </p>
@@ -397,7 +400,7 @@ export function SettingsPage() {
         }}
       >
         <form onSubmit={handleDeleteAccount} className="space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-content-muted">
             This permanently deletes <strong>{user.email}</strong>, all of your short
             links, and their analytics. Enter your password to confirm.
           </p>

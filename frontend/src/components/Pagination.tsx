@@ -13,7 +13,7 @@ export function Pagination({ offset, limit, total, count, onChange }: Pagination
   const hasNext = total !== null ? end < total : count === limit;
 
   return (
-    <div className="flex items-center justify-between gap-4 pt-4 text-sm text-slate-600">
+    <div className="flex items-center justify-between gap-4 pt-4 text-sm text-content-muted">
       <p>
         {total !== null ? (
           <>

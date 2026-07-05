@@ -9,7 +9,7 @@ interface BarChartProps {
 export function BarChart({ data, bucket }: BarChartProps) {
   if (data.length === 0) {
     return (
-      <div className="flex h-48 items-center justify-center text-sm text-slate-400">
+      <div className="flex h-48 items-center justify-center text-sm text-content-subtle">
         No click data for this period yet.
       </div>
     );
@@ -55,7 +55,7 @@ export function BarChart({ data, bucket }: BarChartProps) {
         {data.map((d, i) => (
           <div
             key={i}
-            className="flex-1 truncate text-center text-[10px] text-slate-400"
+            className="flex-1 truncate text-center text-[10px] text-content-subtle"
           >
             {i % labelEvery === 0 ? label(d.bucket) : ""}
           </div>

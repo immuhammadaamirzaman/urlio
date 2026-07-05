@@ -46,12 +46,12 @@ export function ResetPasswordPage() {
         title="Invalid reset link"
         subtitle="This link is missing its token."
         footer={
-          <Link to="/forgot-password" className="font-medium text-brand-600 hover:underline">
+          <Link to="/forgot-password" className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
             Request a new reset link
           </Link>
         }
       >
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-content-muted">
           Use the most recent password-reset email, or request a fresh link.
         </p>
       </AuthShell>
@@ -65,7 +65,7 @@ export function ResetPasswordPage() {
       footer={
         <>
           Link expired?{" "}
-          <Link to="/forgot-password" className="font-medium text-brand-600 hover:underline">
+          <Link to="/forgot-password" className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
             Request a new one
           </Link>
         </>
@@ -87,7 +87,7 @@ export function ResetPasswordPage() {
             onChange={(e) => setPassword(e.target.value)}
             className="input"
           />
-          <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
+          <p className="mt-1 text-xs text-content-muted">At least 8 characters.</p>
         </div>
         <div>
           <label className="label" htmlFor="confirm_password">
@@ -104,7 +104,7 @@ export function ResetPasswordPage() {
           />
         </div>
 
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
 
         <button type="submit" disabled={submitting} className="btn-primary w-full">
           {submitting ? <Spinner className="h-4 w-4" /> : null}

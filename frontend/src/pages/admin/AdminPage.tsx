@@ -21,20 +21,20 @@ export function AdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Admin</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-2xl font-bold text-content">Admin</h1>
+        <p className="text-sm text-content-muted">
           Moderate users and links, and keep an eye on platform health.
         </p>
       </div>
 
-      <div className="inline-flex rounded-lg border border-slate-300 p-0.5 text-sm">
+      <div className="inline-flex rounded-lg border border-border p-0.5 text-sm">
         {TABS.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={`rounded-md px-4 py-1.5 font-medium transition-colors ${
-              tab === t ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
+              tab === t ? "bg-brand-600 text-white" : "text-content-muted hover:bg-surface-muted"
             }`}
           >
             {t}
@@ -70,7 +70,7 @@ function OverviewTab() {
       </div>
 
       <div className="card p-5">
-        <h2 className="mb-4 text-base font-semibold text-slate-900">
+        <h2 className="mb-4 text-base font-semibold text-content">
           Clicks per day (last 14 days)
         </h2>
         <BarChart data={s.clicks_per_day} bucket="day" />

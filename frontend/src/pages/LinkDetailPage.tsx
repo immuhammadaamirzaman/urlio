@@ -37,7 +37,7 @@ export function LinkDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/dashboard" className="text-sm font-medium text-brand-600 hover:underline">
+        <Link to="/dashboard" className="text-sm font-medium text-brand-600 dark:text-brand-400 hover:underline">
           ← Back to links
         </Link>
       </div>
@@ -51,29 +51,29 @@ export function LinkDetailPage() {
                 href={l.short_url}
                 target="_blank"
                 rel="noreferrer"
-                className="truncate text-xl font-bold text-brand-700 hover:underline"
+                className="truncate text-xl font-bold text-brand-700 dark:text-brand-300 hover:underline"
               >
                 {prettyUrl(l.short_url)}
               </a>
               <CopyButton value={l.short_url} />
             </div>
-            <p className="mt-1 truncate text-sm text-slate-500" title={l.target_url}>
+            <p className="mt-1 truncate text-sm text-content-muted" title={l.target_url}>
               → {l.target_url}
             </p>
             <div className="mt-3">
               <LinkStatusBadges link={l} />
             </div>
           </div>
-          <dl className="shrink-0 text-right text-xs text-slate-500">
+          <dl className="shrink-0 text-right text-xs text-content-muted">
             <dt className="inline">Created </dt>
-            <dd className="inline font-medium text-slate-700">
+            <dd className="inline font-medium text-content">
               {formatDateTime(l.created_at)}
             </dd>
             {l.expires_at && (
               <>
                 <br />
                 <dt className="inline">Expires </dt>
-                <dd className="inline font-medium text-slate-700">
+                <dd className="inline font-medium text-content">
                   {formatDateTime(l.expires_at)}
                 </dd>
               </>
@@ -108,15 +108,15 @@ export function LinkDetailPage() {
       {/* Timeseries chart */}
       <div className="card p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">Clicks over time</h2>
-          <div className="inline-flex rounded-lg border border-slate-300 p-0.5 text-xs">
+          <h2 className="text-base font-semibold text-content">Clicks over time</h2>
+          <div className="inline-flex rounded-lg border border-border p-0.5 text-xs">
             {(["day", "hour"] as const).map((b) => (
               <button
                 key={b}
                 type="button"
                 onClick={() => setBucket(b)}
                 className={`rounded-md px-3 py-1 font-medium capitalize transition-colors ${
-                  bucket === b ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                  bucket === b ? "bg-brand-600 text-white" : "text-content-muted hover:bg-surface-muted"
                 }`}
               >
                 {b === "day" ? "Daily" : "Hourly"}
@@ -126,7 +126,7 @@ export function LinkDetailPage() {
         </div>
         {stats.loading && !stats.data ? (
           <div className="flex h-48 items-center justify-center">
-            <Spinner className="h-6 w-6 text-brand-600" />
+            <Spinner className="h-6 w-6 text-brand-600 dark:text-brand-400" />
           </div>
         ) : (
           <BarChart data={stats.data?.timeseries ?? []} bucket={bucket} />
@@ -136,36 +136,36 @@ export function LinkDetailPage() {
       {/* Top referrers / countries */}
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="card p-5">
-          <h2 className="mb-3 text-base font-semibold text-slate-900">Top referrers</h2>
+          <h2 className="mb-3 text-base font-semibold text-content">Top referrers</h2>
           {stats.data && stats.data.top_referrers.length > 0 ? (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-border">
               {stats.data.top_referrers.map((r, i) => (
                 <li key={i} className="flex items-center justify-between py-2 text-sm">
-                  <span className="truncate text-slate-700">
+                  <span className="truncate text-content">
                     {r.referrer ? prettyUrl(r.referrer) : "Direct / none"}
                   </span>
-                  <span className="font-medium text-slate-900">{formatNumber(r.count)}</span>
+                  <span className="font-medium text-content">{formatNumber(r.count)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="py-4 text-sm text-slate-400">No referrer data yet.</p>
+            <p className="py-4 text-sm text-content-subtle">No referrer data yet.</p>
           )}
         </div>
 
         <div className="card p-5">
-          <h2 className="mb-3 text-base font-semibold text-slate-900">Top countries</h2>
+          <h2 className="mb-3 text-base font-semibold text-content">Top countries</h2>
           {stats.data && stats.data.top_countries.length > 0 ? (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-border">
               {stats.data.top_countries.map((c) => (
                 <li key={c.country} className="flex items-center justify-between py-2 text-sm">
-                  <span className="text-slate-700">{c.country}</span>
-                  <span className="font-medium text-slate-900">{formatNumber(c.count)}</span>
+                  <span className="text-content">{c.country}</span>
+                  <span className="font-medium text-content">{formatNumber(c.count)}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="py-4 text-sm text-slate-400">
+            <p className="py-4 text-sm text-content-subtle">
               No country data yet. Country tracking requires a CDN/proxy header
               (see COUNTRY_HEADER).
             </p>
@@ -175,12 +175,12 @@ export function LinkDetailPage() {
 
       {/* Recent clicks */}
       <div className="card p-5">
-        <h2 className="mb-3 text-base font-semibold text-slate-900">Recent clicks</h2>
+        <h2 className="mb-3 text-base font-semibold text-content">Recent clicks</h2>
         {clicks.error ? (
           <ErrorState message={clicks.error} onRetry={clicks.reload} />
         ) : clicks.loading && !clicks.data ? (
           <div className="flex h-24 items-center justify-center">
-            <Spinner className="h-6 w-6 text-brand-600" />
+            <Spinner className="h-6 w-6 text-brand-600 dark:text-brand-400" />
           </div>
         ) : !clicks.data || clicks.data.items.length === 0 ? (
           <EmptyState title="No clicks recorded yet" />
@@ -189,16 +189,16 @@ export function LinkDetailPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-border text-xs uppercase tracking-wide text-content-muted">
                     <th className="py-2 pr-4 font-medium">When</th>
                     <th className="py-2 pr-4 font-medium">Referrer</th>
                     <th className="py-2 pr-4 font-medium">Country</th>
                     <th className="py-2 font-medium">User agent</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {clicks.data.items.map((c) => (
-                    <tr key={c.id} className="text-slate-700">
+                    <tr key={c.id} className="text-content">
                       <td className="whitespace-nowrap py-2 pr-4">
                         {formatDateTime(c.clicked_at)}
                       </td>

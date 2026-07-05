@@ -84,7 +84,7 @@ export function AdminUsersTab() {
           <div className="card overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-border text-xs uppercase tracking-wide text-content-muted">
                   <th className="px-4 py-3 font-medium">User</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Links</th>
@@ -92,34 +92,34 @@ export function AdminUsersTab() {
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {users.data.items.map((u) => (
-                  <tr key={u.id} className="text-slate-700">
+                  <tr key={u.id} className="text-content">
                     <td className="max-w-[18rem] px-4 py-3">
-                      <p className="truncate font-medium text-slate-900">{u.email}</p>
-                      <p className="truncate text-xs text-slate-500">
+                      <p className="truncate font-medium text-content">{u.email}</p>
+                      <p className="truncate text-xs text-content-muted">
                         {u.display_name || "—"}
                       </p>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3">
                       <span className="flex flex-wrap gap-1">
                         {u.is_superuser && (
-                          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+                          <span className="rounded-full bg-brand-500/15 px-2 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300">
                             Admin
                           </span>
                         )}
                         {!u.is_active && (
-                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">
                             Deactivated
                           </span>
                         )}
                         {!u.email_verified && (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
                             Unverified
                           </span>
                         )}
                         {u.is_active && u.email_verified && !u.is_superuser && (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                             Active
                           </span>
                         )}
@@ -129,7 +129,7 @@ export function AdminUsersTab() {
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(u.created_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       {u.is_superuser ? (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-content-subtle">—</span>
                       ) : u.is_active ? (
                         <button
                           type="button"
@@ -176,16 +176,16 @@ export function AdminUsersTab() {
       >
         {deactivating && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-content-muted">
               <strong>{deactivating.email}</strong> will be signed out everywhere and
               blocked from signing in until reactivated.
             </p>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
+            <label className="flex items-center gap-2 text-sm text-content">
               <input
                 type="checkbox"
                 checked={disableLinks}
                 onChange={(e) => setDisableLinks(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300"
+                className="h-4 w-4 rounded border-border"
               />
               Also disable their {formatNumber(deactivating.link_count)} link
               {deactivating.link_count === 1 ? "" : "s"} (stops redirects immediately)

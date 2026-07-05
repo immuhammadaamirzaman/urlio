@@ -34,11 +34,11 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
         aria-label={title}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <h2 className="text-lg font-semibold text-content">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="btn-ghost px-2 py-1 text-slate-400"
+            className="btn-ghost px-2 py-1 text-content-subtle"
             aria-label="Close"
           >
             ✕

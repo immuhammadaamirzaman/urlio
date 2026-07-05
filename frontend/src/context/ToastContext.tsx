@@ -53,10 +53,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             onClick={() => remove(t.id)}
             className={`pointer-events-auto w-full max-w-sm rounded-lg px-4 py-3 text-left text-sm font-medium shadow-lg ring-1 transition ${
               t.kind === "success"
-                ? "bg-green-50 text-green-800 ring-green-200"
+                ? "bg-green-50 text-green-800 ring-green-200 dark:bg-green-500/15 dark:text-green-200 dark:ring-green-500/30"
                 : t.kind === "error"
-                  ? "bg-red-50 text-red-800 ring-red-200"
-                  : "bg-slate-800 text-white ring-slate-700"
+                  ? "bg-red-50 text-red-800 ring-red-200 dark:bg-red-500/15 dark:text-red-200 dark:ring-red-500/30"
+                  : "bg-slate-800 text-white ring-slate-700 dark:bg-slate-700 dark:ring-slate-600"
             }`}
           >
             {t.message}
