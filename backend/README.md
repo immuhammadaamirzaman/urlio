@@ -76,6 +76,8 @@ make migrate        # alembic upgrade head
 make run            # uvicorn on http://localhost:8000
 make test           # run the test suite (SQLite + fakeredis, no services needed)
 make lint           # ruff
+
+uvicorn app.main:app --reload
 ```
 
 ## Configuration

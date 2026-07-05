@@ -112,3 +112,83 @@ async def test_list_links_is_owner_scoped(client, register_and_login):
     page = resp.json()
     assert page["total"] == 3
     assert len(page["items"]) == 3
+
+
+async def test_list_links_search_matches_code_and_target(client, register_and_login):
+    headers, _ = await register_and_login(email="search@example.com")
+    await client.post(
+        f"{API}/links",
+        headers=headers,
+        json={"target_url": "https://apple.com/", "custom_alias": "fruitbasket"},
+    )
+    await client.post(
+        f"{API}/links",
+        headers=headers,
+        json={"target_url": "https://microsoft.com/", "custom_alias": "widget"},
+    )
+
+    # Match on the target URL.
+    by_target = await client.get(f"{API}/links", headers=headers, params={"q": "apple"})
+    assert by_target.status_code == 200
+    assert by_target.json()["total"] == 1
+    assert by_target.json()["items"][0]["code"] == "fruitbasket"
+
+    # Match on the code (case-insensitive).
+    by_code = await client.get(f"{API}/links", headers=headers, params={"q": "WIDGET"})
+    assert by_code.json()["total"] == 1
+    assert by_code.json()["items"][0]["code"] == "widget"
+
+    # No match.
+    none = await client.get(f"{API}/links", headers=headers, params={"q": "zzz"})
+    assert none.json()["total"] == 0
+    assert none.json()["items"] == []
+
+
+async def test_list_links_filters_by_active_status(client, register_and_login):
+    headers, _ = await register_and_login(email="status@example.com")
+    created = await client.post(
+        f"{API}/links", headers=headers, json={"target_url": "https://example.com/on"}
+    )
+    await client.post(
+        f"{API}/links", headers=headers, json={"target_url": "https://example.com/off"}
+    )
+    await client.patch(
+        f"{API}/links/{created.json()['id']}", headers=headers, json={"is_active": False}
+    )
+
+    active = await client.get(f"{API}/links", headers=headers, params={"is_active": "true"})
+    assert active.json()["total"] == 1
+    assert active.json()["items"][0]["is_active"] is True
+
+    inactive = await client.get(
+        f"{API}/links", headers=headers, params={"is_active": "false"}
+    )
+    assert inactive.json()["total"] == 1
+    assert inactive.json()["items"][0]["is_active"] is False
+
+
+async def test_list_links_sort_order_is_reversible(client, register_and_login):
+    headers, _ = await register_and_login(email="sort@example.com")
+    for i in range(3):
+        await client.post(
+            f"{API}/links", headers=headers, json={"target_url": f"https://example.com/{i}"}
+        )
+
+    desc = await client.get(
+        f"{API}/links", headers=headers, params={"sort": "created_at", "order": "desc"}
+    )
+    asc = await client.get(
+        f"{API}/links", headers=headers, params={"sort": "created_at", "order": "asc"}
+    )
+
+    codes_desc = [item["code"] for item in desc.json()["items"]]
+    codes_asc = [item["code"] for item in asc.json()["items"]]
+    assert len(codes_desc) == 3
+    # asc and desc are exact reverses (stable, direction-aware tiebreaker).
+    assert codes_desc == list(reversed(codes_asc))
+
+
+async def test_list_links_rejects_invalid_sort(client, register_and_login):
+    headers, _ = await register_and_login(email="badsort@example.com")
+    resp = await client.get(f"{API}/links", headers=headers, params={"sort": "bogus"})
+    assert resp.status_code == 422
