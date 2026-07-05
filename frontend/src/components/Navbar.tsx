@@ -47,6 +47,11 @@ export function Navbar() {
               <NavLink to="/settings" className={navLinkClass}>
                 Settings
               </NavLink>
+              {user?.is_superuser && (
+                <NavLink to="/admin" className={navLinkClass}>
+                  Admin
+                </NavLink>
+              )}
               <span className="mx-2 hidden text-sm text-slate-400 sm:inline">
                 {user?.display_name || user?.email}
               </span>
