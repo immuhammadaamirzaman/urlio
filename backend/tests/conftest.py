@@ -7,8 +7,10 @@ Tests run fully in-process: an in-memory SQLite database (via aiosqlite + Static
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
-# These must be set before app modules import settings (a cached singleton).
+# These must be set before app modules import settings (a cached singleton). They come first
+# so that ``setdefault`` keeps them as the test-specific overrides below.
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 os.environ.setdefault("ENVIRONMENT", "development")
@@ -17,6 +19,25 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")  # enabled per-test where n
 os.environ.setdefault("ARGON2_TIME_COST", "1")
 os.environ.setdefault("ARGON2_MEMORY_COST", "8192")
 os.environ.setdefault("ARGON2_PARALLELISM", "1")
+
+# The app's Settings has no in-code defaults — every field is required from the environment.
+# Fill the remaining required keys from the committed `.env.example` so the suite is
+# self-contained (never depending on a developer's real, secret-bearing `.env`). Written as
+# a single expression so it stays within the pre-import preamble; the explicit overrides
+# above still win (only keys not already set are added).
+os.environ.update(
+    {
+        key.strip(): value.strip()
+        for key, value in (
+            line.split("=", 1)
+            for line in (Path(__file__).resolve().parents[1] / ".env.example")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if line.strip() and not line.strip().startswith("#") and "=" in line
+        )
+        if key.strip() not in os.environ
+    }
+)
 
 import fakeredis.aioredis
 import pytest
@@ -85,6 +106,28 @@ async def client(engine, fake_redis):
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def captured_emails(monkeypatch):
+    """Capture transactional emails (and their tokens) instead of sending them.
+
+    Patches the senders where ``app.services.auth`` imported them, so the real flows run
+    but the token is available to the test.
+    """
+    sent: list[dict] = []
+
+    def _make(kind: str):
+        async def _fn(to: str, token: str) -> bool:
+            sent.append({"kind": kind, "to": to, "token": token})
+            return True
+
+        return _fn
+
+    monkeypatch.setattr("app.services.auth.send_verification_email", _make("verify"))
+    monkeypatch.setattr("app.services.auth.send_password_reset_email", _make("reset"))
+    monkeypatch.setattr("app.services.auth.send_email_change_email", _make("email_change"))
+    return sent
 
 
 @pytest.fixture

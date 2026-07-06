@@ -8,9 +8,11 @@ A production-grade, stateless URL shortener with user accounts, click analytics,
 
 - **Instant URL shortening** — anonymous or authenticated
 - **Custom aliases** — vanity codes with reserved-word blocklist
-- **Link management** — expiration dates, password protection, active/inactive toggle
-- **Click analytics** — per-click logs, timeseries charts, referrer breakdown
-- **JWT authentication** — access + rotating refresh tokens, logout-all support
+- **Link management** — expiration dates, password protection, active/inactive toggle, search/sort/filter
+- **Click analytics** — per-click logs, timeseries charts, referrer + country breakdowns
+- **JWT authentication** — access + rotating refresh tokens, active-session list with per-device revoke
+- **Account lifecycle** — email verification, password reset, verified email change, account deletion
+- **Admin & moderation** — superuser role, user deactivation, link takedowns, global stats, audit log
 - **O(1) redirects** — Redis-first hot path with async DB fallback
 - **Security** — SSRF protection, rate limiting, Argon2id password hashing, security headers
 - **Horizontally scalable** — stateless API, Redis-backed rate limits and caching
@@ -120,18 +122,23 @@ Base path: `/api/v1`
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/auth/register` | Create account |
+| `POST` | `/auth/register` | Create account (sends a verification email) |
 | `POST` | `/auth/login` | Issue JWT tokens |
 | `POST` | `/auth/refresh` | Rotate refresh token |
 | `POST` | `/auth/logout` | Revoke current session |
 | `POST` | `/auth/logout-all` | Revoke all sessions |
+| `POST` | `/auth/forgot-password` | Email a password-reset link (never leaks account existence) |
+| `POST` | `/auth/reset-password` | Set a new password from a reset token; revokes all sessions |
+| `POST` | `/auth/verify-email` | Confirm an email address from a token |
+| `POST` | `/auth/resend-verification` | Re-send the verification email (authenticated) |
+| `POST` | `/auth/confirm-email-change` | Apply a pending email change; revokes all sessions |
 
 ### Links
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/links` | Create short link (anonymous-friendly) |
-| `GET` | `/links` | List user's links (paginated) |
+| `GET` | `/links` | List user's links (paginated; `q`, `sort`, `order`, `is_active`) |
 | `GET` | `/links/{id}` | Get a single link |
 | `PATCH` | `/links/{id}` | Update link |
 | `DELETE` | `/links/{id}` | Delete link |
@@ -148,7 +155,30 @@ Base path: `/api/v1`
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/users/me` | Get current user |
-| `PATCH` | `/users/me` | Update profile |
+| `PATCH` | `/users/me` | Update profile (password changes require `current_password` and revoke all sessions) |
+| `DELETE` | `/users/me` | Delete account (password-confirmed; cascades links + clicks) |
+| `POST` | `/users/me/email` | Start an email change (confirmation link goes to the new address) |
+| `GET` | `/users/me/sessions` | List active sessions (device, created/last-refreshed) |
+| `DELETE` | `/users/me/sessions/{jti}` | Revoke a single session |
+
+### Admin (superuser only)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/users` | List/search users with link counts |
+| `PATCH` | `/admin/users/{id}` | Activate/deactivate a user (optionally disable their links) |
+| `GET` | `/admin/links` | List/search all links with owner emails |
+| `PATCH` | `/admin/links/{id}` | Force-enable/disable any link (takedown) |
+| `DELETE` | `/admin/links/{id}` | Delete any link |
+| `GET` | `/admin/stats` | Platform totals + clicks-per-day timeseries |
+| `GET` | `/admin/audit` | Audit log of admin actions |
+
+Grant the first superuser from the backend directory:
+
+```bash
+make promote-admin EMAIL=you@example.com
+# or directly: python -m app.cli promote-admin you@example.com
+```
 
 ### Redirect (hot path)
 
@@ -181,6 +211,9 @@ Copy `backend/.env.example` to `backend/.env` and set the required values:
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime (default: 30) |
 | `SSRF_PROTECTION_ENABLED` | Block requests to private/loopback IPs (default: true) |
 | `SHORTCODE_LENGTH` | Initial short code length in characters (default: 7) |
+| `EMAIL_BACKEND` | `console` (log emails, dev default) or `smtp` (send via `SMTP_*` settings) |
+| `FRONTEND_BASE_URL` | Public SPA URL used inside password-reset/verification emails |
+| `COUNTRY_HEADER` | Trusted proxy/CDN header carrying the visitor country (e.g. `CF-IPCountry`); empty disables |
 
 See `backend/.env.example` for the full list of available settings.
 
@@ -205,8 +238,10 @@ The API is **stateless** — deploy N replicas behind a load balancer. Recommend
 1. Set `ENVIRONMENT=production` and a unique `SECRET_KEY`
 2. Point `DATABASE_URL` and `REDIS_URL` to your managed services
 3. Run `alembic upgrade head` before starting new API instances
-4. Build the frontend with `npm run build` and serve `dist/` from a CDN or static host
-5. Set `VITE_API_BASE_URL` to your API's public URL before building
+4. Configure email (`EMAIL_BACKEND=smtp` + `SMTP_*`) so password reset and verification work
+5. Promote your admin account: `python -m app.cli promote-admin you@example.com`
+6. Build the frontend with `npm run build` and serve `dist/` from a CDN or static host
+7. Set `VITE_API_BASE_URL` to your API's public URL before building
 
 ```bash
 # Generate a secure SECRET_KEY

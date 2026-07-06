@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { listLinks } from "../api/links";
+import type { LinkSort } from "../api/links";
 import type { LinkRead, Page } from "../api/types";
 import { CreateLinkForm } from "../components/CreateLinkForm";
 import { EmptyState, ErrorState } from "../components/ErrorState";
@@ -11,14 +12,37 @@ import { PageLoader } from "../components/Spinner";
 import { useAsyncData } from "../hooks/useAsyncData";
 
 const PAGE_SIZE = 20;
+type StatusFilter = "all" | "active" | "inactive";
 
 export function DashboardPage() {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
+  const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<LinkSort>("created_at");
+  const [status, setStatus] = useState<StatusFilter>("all");
+
+  // Debounce typing into the actual search term (which triggers the fetch).
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(q.trim());
+      setOffset(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  const filtered = search !== "" || status !== "all";
 
   const { data, loading, error, reload, setData } = useAsyncData<Page<LinkRead>>(
-    () => listLinks({ limit: PAGE_SIZE, offset }),
-    [offset],
+    () =>
+      listLinks({
+        limit: PAGE_SIZE,
+        offset,
+        q: search,
+        sort,
+        is_active: status === "all" ? undefined : status === "active",
+      }),
+    [offset, search, sort, status],
   );
 
   function handleCreated() {
@@ -51,12 +75,49 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Your links</h1>
-          <p className="text-sm text-slate-500">Manage, edit, and track your short links.</p>
+          <h1 className="text-2xl font-bold text-content">Your links</h1>
+          <p className="text-sm text-content-muted">Manage, edit, and track your short links.</p>
         </div>
         <button type="button" onClick={() => setCreating(true)} className="btn-primary">
           + New link
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="input max-w-sm"
+          placeholder="Search by code or destination…"
+          aria-label="Search links"
+        />
+        <select
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value as LinkSort);
+            setOffset(0);
+          }}
+          className="input w-auto"
+          aria-label="Sort links"
+        >
+          <option value="created_at">Newest first</option>
+          <option value="click_count">Most clicked</option>
+          <option value="last_clicked_at">Recently clicked</option>
+        </select>
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as StatusFilter);
+            setOffset(0);
+          }}
+          className="input w-auto"
+          aria-label="Filter by status"
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
       </div>
 
       {loading && !data ? (
@@ -64,19 +125,26 @@ export function DashboardPage() {
       ) : error ? (
         <ErrorState message={error} onRetry={reload} />
       ) : !data || data.items.length === 0 ? (
-        <EmptyState
-          title="No links yet"
-          subtitle="Create your first short link to start tracking clicks."
-          action={
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="btn-primary"
-            >
-              + New link
-            </button>
-          }
-        />
+        filtered ? (
+          <EmptyState
+            title="No links match"
+            subtitle="Try a different search term or filter."
+          />
+        ) : (
+          <EmptyState
+            title="No links yet"
+            subtitle="Create your first short link to start tracking clicks."
+            action={
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="btn-primary"
+              >
+                + New link
+              </button>
+            }
+          />
+        )
       ) : (
         <>
           <div className="space-y-3">

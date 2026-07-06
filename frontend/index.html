@@ -4,7 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="ShortlyX — fast, simple URL shortening with analytics." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#1f47f5" />
     <title>ShortlyX</title>
+    <!--
+      Apply the saved theme before first paint to avoid a flash of the wrong theme.
+      Mirrors src/lib/theme.ts; keep them in sync. Fails silently if storage is off.
+    -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("shortlyx-theme");
+          var t = raw ? JSON.parse(raw) : null;
+          var mode = t && t.mode ? t.mode : "system";
+          var prefersDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var dark = mode === "dark" || (mode === "system" && prefersDark);
+          var root = document.documentElement;
+          if (dark) root.classList.add("dark");
+          if (t && t.brandVars) {
+            for (var name in t.brandVars) {
+              root.style.setProperty(name, t.brandVars[name]);
+            }
+          }
+        } catch (e) {
+          /* no-op */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

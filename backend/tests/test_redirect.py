@@ -2,7 +2,39 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import pytest
+
+from app.api.redirect import _client_country
+from app.core.config import settings
 from tests.conftest import API
+
+
+def _req(**headers):
+    return SimpleNamespace(headers=headers)
+
+
+@pytest.mark.parametrize(
+    ("header_name", "value", "expected"),
+    [
+        ("CF-IPCountry", "us", "US"),  # normalized to uppercase
+        ("CF-IPCountry", " de ", "DE"),  # trimmed
+        ("CF-IPCountry", "XX", None),  # Cloudflare "unknown" sentinel
+        ("CF-IPCountry", "T1", None),  # Tor sentinel (not alpha)
+        ("CF-IPCountry", "USA", None),  # not a 2-letter code
+        ("CF-IPCountry", "", None),  # empty header
+        ("Other-Header", "US", None),  # configured header absent
+    ],
+)
+def test_client_country_normalization(monkeypatch, header_name, value, expected):
+    monkeypatch.setattr(settings, "COUNTRY_HEADER", "CF-IPCountry")
+    assert _client_country(_req(**{header_name: value})) == expected
+
+
+def test_client_country_disabled_by_default(monkeypatch):
+    monkeypatch.setattr(settings, "COUNTRY_HEADER", "")
+    assert _client_country(_req(**{"CF-IPCountry": "US"})) is None
 
 
 async def _create(client, **payload):

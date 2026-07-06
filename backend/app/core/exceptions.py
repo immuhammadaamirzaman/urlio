@@ -74,6 +74,19 @@ class InvalidCredentialsError(AppError):
     message = "Invalid email or password."
 
 
+class InvalidPasswordError(AppError):
+    """Wrong password on a step-up re-auth check (delete account, change email/password).
+
+    Distinct from InvalidCredentialsError: the session/bearer token is valid — only the
+    password supplied in the request body is wrong — so this is 403, not a 401 (which
+    clients rightly treat as a dead session).
+    """
+
+    status_code = 403
+    code = "invalid_password"
+    message = "The password you entered is incorrect."
+
+
 class InvalidTokenError(AppError):
     status_code = 401
     code = "invalid_token"
@@ -96,6 +109,18 @@ class InactiveUserError(AppError):
     status_code = 403
     code = "inactive_user"
     message = "This account is inactive."
+
+
+class NotAuthorizedError(AppError):
+    status_code = 403
+    code = "not_authorized"
+    message = "You do not have permission to perform this action."
+
+
+class EmailAlreadyVerifiedError(AppError):
+    status_code = 409
+    code = "email_already_verified"
+    message = "This email address is already verified."
 
 
 # --- Links / shortcodes ----------------------------------------------------

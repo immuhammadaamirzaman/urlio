@@ -85,12 +85,12 @@ export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalPro
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-content">
           <input
             type="checkbox"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-brand-600"
+            className="h-4 w-4 rounded border-border text-brand-600 dark:text-brand-400"
           />
           Active (uncheck to disable redirects)
         </label>
@@ -110,7 +110,7 @@ export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalPro
             <button
               type="button"
               onClick={() => setExpiresAt("")}
-              className="mt-1 text-xs font-medium text-brand-600 hover:underline"
+              className="mt-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
             >
               Clear expiry
             </button>
@@ -119,7 +119,7 @@ export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalPro
 
         <div>
           <span className="label">Password protection</span>
-          <div className="space-y-1 text-sm text-slate-700">
+          <div className="space-y-1 text-sm text-content">
             <label className="flex items-center gap-2">
               <input
                 type="radio"
@@ -163,7 +163,7 @@ export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalPro
           )}
         </div>
 
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onClose} className="btn-secondary">

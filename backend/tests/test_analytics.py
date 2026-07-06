@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
-from app.services.analytics import flush_click_stream
+from app.models.click import Click
+from app.services.analytics import flush_click_stream, get_link_stats
+from app.services.links import get_link_by_code
 from tests.conftest import API
 
 
@@ -40,6 +43,38 @@ async def test_stats_endpoint_reflects_clicks(client, register_and_login):
     body = stats.json()
     assert body["total_clicks"] >= 1
     assert body["code"] == link["code"]
+    # These aggregate lists must always be present (the frontend reads `.length`).
+    assert isinstance(body["top_referrers"], list)
+    assert isinstance(body["top_countries"], list)
+
+
+async def test_stats_top_countries_aggregates_and_ignores_nulls(
+    client, fake_redis, db_session, register_and_login
+):
+    headers, _ = await register_and_login(email="countries@example.com")
+    created = await client.post(
+        f"{API}/links", headers=headers, json={"target_url": "https://example.com/geo"}
+    )
+    link_id = created.json()["id"]
+    link = await get_link_by_code(db_session, created.json()["code"])
+
+    # Two clicks from US, one from DE, one with no country (should be excluded).
+    now = datetime.now(UTC)
+    db_session.add_all(
+        [
+            Click(link_id=uuid.UUID(link_id), clicked_at=now, country="US"),
+            Click(link_id=uuid.UUID(link_id), clicked_at=now, country="US"),
+            Click(link_id=uuid.UUID(link_id), clicked_at=now, country="DE"),
+            Click(link_id=uuid.UUID(link_id), clicked_at=now, country=None),
+        ]
+    )
+    await db_session.commit()
+
+    stats = await get_link_stats(db_session, fake_redis, link)
+    countries = {c.country: c.count for c in stats.top_countries}
+    assert countries == {"US": 2, "DE": 1}
+    # Most-frequent country ranks first; NULL country is never included.
+    assert stats.top_countries[0].country == "US"
 
 
 async def test_clicks_list_hides_ip_hash(client, fake_redis, db_session, register_and_login):

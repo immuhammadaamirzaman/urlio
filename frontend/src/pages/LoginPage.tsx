@@ -42,7 +42,7 @@ export function LoginPage() {
       footer={
         <>
           Don&apos;t have an account?{" "}
-          <Link to="/register" className="font-medium text-brand-600 hover:underline">
+          <Link to="/register" className="font-medium text-brand-600 dark:text-brand-400 hover:underline">
             Sign up
           </Link>
         </>
@@ -64,9 +64,17 @@ export function LoginPage() {
           />
         </div>
         <div>
-          <label className="label" htmlFor="password">
-            Password
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="label" htmlFor="password">
+              Password
+            </label>
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <input
             id="password"
             type="password"
@@ -78,7 +86,7 @@ export function LoginPage() {
           />
         </div>
 
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+        {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
 
         <button type="submit" disabled={submitting} className="btn-primary w-full">
           {submitting ? <Spinner className="h-4 w-4" /> : null}

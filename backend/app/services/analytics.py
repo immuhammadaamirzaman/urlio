@@ -21,7 +21,7 @@ from app.cache.redis import click_count_key
 from app.core.config import settings
 from app.models.click import Click
 from app.models.link import Link
-from app.schemas.analytics import LinkStats, ReferrerCount, TimeBucket
+from app.schemas.analytics import CountryCount, LinkStats, ReferrerCount, TimeBucket
 
 logger = logging.getLogger("shortlyx.analytics")
 
@@ -169,6 +169,17 @@ async def get_link_stats(
     ).all()
     top_referrers = [ReferrerCount(referrer=row.referrer, count=row.cnt) for row in ref_rows]
 
+    country_rows = (
+        await session.execute(
+            select(Click.country, func.count().label("cnt"))
+            .where(Click.link_id == link.id, Click.country.is_not(None))
+            .group_by(Click.country)
+            .order_by(func.count().desc())
+            .limit(10)
+        )
+    ).all()
+    top_countries = [CountryCount(country=row.country, count=row.cnt) for row in country_rows]
+
     return LinkStats(
         link_id=link.id,
         code=link.code,
@@ -178,6 +189,7 @@ async def get_link_stats(
         created_at=link.created_at,
         timeseries=timeseries,
         top_referrers=top_referrers,
+        top_countries=top_countries,
     )
 
 

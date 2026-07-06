@@ -88,13 +88,13 @@ export function CreateLinkForm({
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="text-sm font-medium text-brand-600 hover:text-brand-700"
+            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
           >
             {showAdvanced ? "− Hide options" : "+ Custom alias, expiry & password"}
           </button>
 
           {showAdvanced && (
-            <div className="mt-3 grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+            <div className="mt-3 grid gap-4 rounded-lg border border-border bg-canvas p-4 sm:grid-cols-2">
               <div>
                 <label className="label" htmlFor="custom_alias">
                   Custom alias
@@ -108,7 +108,7 @@ export function CreateLinkForm({
                   maxLength={64}
                   className="input"
                 />
-                <p className="mt-1 text-xs text-slate-500">3–64 characters.</p>
+                <p className="mt-1 text-xs text-content-muted">3–64 characters.</p>
               </div>
               <div>
                 <label className="label" htmlFor="expires_at">
@@ -142,7 +142,7 @@ export function CreateLinkForm({
         </div>
       )}
 
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
     </form>
   );
 }

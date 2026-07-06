@@ -29,6 +29,11 @@ class ReferrerCount(BaseModel):
     count: int
 
 
+class CountryCount(BaseModel):
+    country: str
+    count: int
+
+
 class LinkStats(BaseModel):
     link_id: uuid.UUID
     code: str
@@ -38,3 +43,4 @@ class LinkStats(BaseModel):
     created_at: datetime
     timeseries: list[TimeBucket]
     top_referrers: list[ReferrerCount]
+    top_countries: list[CountryCount]
