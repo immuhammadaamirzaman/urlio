@@ -14,6 +14,7 @@ from app.core.security import hash_password, verify_password
 from app.models.link import Link
 from app.models.user import User
 from app.schemas.user import UserUpdate
+from app.services.email import send_account_closed_email
 from app.services.links import invalidate_link_cache
 
 
@@ -91,3 +92,6 @@ async def delete_account(
 
     for code in codes:
         await invalidate_link_cache(redis, code)
+
+    # Confirm the closure to the user (best-effort; a mail failure never blocks deletion).
+    await send_account_closed_email(user.email)

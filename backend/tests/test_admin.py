@@ -263,6 +263,67 @@ async def test_admin_delete_user_requires_superuser(client, register_and_login):
     assert resp.json()["error"]["code"] == "not_authorized"
 
 
+# --- Account-status notification emails -------------------------------------
+async def test_admin_status_change_notifies_user(client, db_session, monkeypatch):
+    """Deactivating emails a deactivation notice; reactivating emails a restore notice."""
+    deactivated: list[str] = []
+    reactivated: list[str] = []
+
+    async def _deact(to: str) -> bool:
+        deactivated.append(to)
+        return True
+
+    async def _react(to: str) -> bool:
+        reactivated.append(to)
+        return True
+
+    monkeypatch.setattr("app.services.admin.send_account_deactivated_email", _deact)
+    monkeypatch.setattr("app.services.admin.send_account_reactivated_email", _react)
+
+    admin = await _make_admin(client, db_session)
+    await _user_headers(client, "flip@example.com")
+    uid = (
+        await client.get(f"{API}/admin/users", headers=admin, params={"q": "flip"})
+    ).json()["items"][0]["id"]
+
+    off = await client.patch(
+        f"{API}/admin/users/{uid}",
+        headers=admin,
+        json={"is_active": False, "disable_links": False},
+    )
+    assert off.status_code == 200
+    on = await client.patch(
+        f"{API}/admin/users/{uid}",
+        headers=admin,
+        json={"is_active": True, "disable_links": False},
+    )
+    assert on.status_code == 200
+
+    assert deactivated == ["flip@example.com"]
+    assert reactivated == ["flip@example.com"]
+
+
+async def test_admin_delete_user_notifies_user(client, db_session, monkeypatch):
+    """A hard delete emails the (now-removed) user a deletion notice."""
+    sent: list[str] = []
+
+    async def _deleted(to: str) -> bool:
+        sent.append(to)
+        return True
+
+    monkeypatch.setattr("app.services.admin.send_account_deleted_email", _deleted)
+
+    admin = await _make_admin(client, db_session)
+    await _user_headers(client, "bye@example.com")
+    uid = (
+        await client.get(f"{API}/admin/users", headers=admin, params={"q": "bye"})
+    ).json()["items"][0]["id"]
+
+    resp = await client.delete(f"{API}/admin/users/{uid}", headers=admin)
+    assert resp.status_code == 204
+    assert sent == ["bye@example.com"]
+
+
 async def test_admin_reactivating_restores_soft_deleted_account(client, db_session):
     # A user soft-deletes their own account; an admin can restore login access.
     user_headers = await _user_headers(client, "comeback@example.com")

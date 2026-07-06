@@ -27,6 +27,11 @@ export function adminUpdateUser(
   return api.patch<AdminUserRead>(`/admin/users/${id}`, data);
 }
 
+/** Permanently delete a user and all their data (hard delete, irreversible). */
+export function adminDeleteUser(id: string): Promise<void> {
+  return api.del<void>(`/admin/users/${id}`);
+}
+
 export function adminListLinks(params: {
   q?: string;
   is_active?: boolean;
