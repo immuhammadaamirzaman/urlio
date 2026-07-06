@@ -18,6 +18,9 @@ class AdminUserRead(BaseModel):
     is_active: bool
     is_superuser: bool
     email_verified: bool
+    # Set when the user soft-deleted their own account (inactive + deleted). None for a
+    # normal account or one an admin merely suspended.
+    deleted_at: datetime | None = None
     link_count: int
     created_at: datetime
 

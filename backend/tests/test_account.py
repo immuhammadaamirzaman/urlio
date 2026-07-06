@@ -332,7 +332,7 @@ async def test_invalid_theme_and_accent_rejected(client, register_and_login):
     assert bad_accent.status_code == 422
 
 
-# --- Account deletion ------------------------------------------------------
+# --- Account deletion (self-service = soft delete / disable) ----------------
 async def test_delete_account(client, register_and_login):
     headers, _ = await register_and_login(email="deleteme@example.com", password="password123")
 
@@ -350,8 +350,66 @@ async def test_delete_account(client, register_and_login):
     )
     assert ok.status_code == 204
 
-    # The account is gone: login fails.
+    # The session is revoked, so the old access token stops working immediately.
+    assert (await client.get(f"{API}/users/me", headers=headers)).status_code == 401
+
+    # Soft delete: the account is disabled (not erased), so login is refused as *inactive*
+    # rather than looking like an unknown account.
     login = await client.post(
         f"{API}/auth/login", json={"email": "deleteme@example.com", "password": "password123"}
     )
-    assert login.status_code == 401
+    assert login.status_code == 403
+    assert login.json()["error"]["code"] == "inactive_user"
+
+
+async def test_delete_account_retains_data_and_deactivates_links(
+    client, register_and_login, db_session
+):
+    from sqlalchemy import select
+
+    from app.models.link import Link
+    from app.models.user import User
+
+    headers, _ = await register_and_login(email="softdel@example.com", password="password123")
+    created = await client.post(
+        f"{API}/links", headers=headers, json={"target_url": "https://ex.com/keep"}
+    )
+    code = created.json()["code"]
+    # The link resolves (307) before the account is deleted.
+    assert (await client.get(f"/{code}", follow_redirects=False)).status_code == 307
+
+    ok = await client.request(
+        "DELETE", f"{API}/users/me", headers=headers, json={"password": "password123"}
+    )
+    assert ok.status_code == 204
+
+    # The user row is retained but disabled and stamped with a deletion time.
+    user = (
+        await db_session.execute(select(User).where(User.email == "softdel@example.com"))
+    ).scalar_one()
+    assert user.is_active is False
+    assert user.deleted_at is not None
+
+    # The link row is retained but deactivated → the short URL no longer resolves (404).
+    link = (
+        await db_session.execute(select(Link).where(Link.code == code))
+    ).scalar_one()
+    assert link.is_active is False
+    assert (await client.get(f"/{code}", follow_redirects=False)).status_code == 404
+
+
+async def test_soft_deleted_email_stays_reserved(client, register_and_login):
+    # Because a self-delete retains the account (and its unique email) rather than erasing
+    # it, the address cannot be re-registered — only an admin can restore or hard-delete it.
+    headers, _ = await register_and_login(email="reserved@example.com", password="password123")
+    ok = await client.request(
+        "DELETE", f"{API}/users/me", headers=headers, json={"password": "password123"}
+    )
+    assert ok.status_code == 204
+
+    again = await client.post(
+        f"{API}/auth/register",
+        json={"email": "reserved@example.com", "password": "password123"},
+    )
+    assert again.status_code == 409
+    assert again.json()["error"]["code"] == "email_exists"

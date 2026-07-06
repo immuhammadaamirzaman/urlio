@@ -1,13 +1,17 @@
 """Application settings, loaded from environment / `.env`.
 
-A single cached `Settings` instance (`get_settings()` / module-level `settings`) is the
-one source of truth for configuration. List-typed values accept comma-separated strings
-in the environment (e.g. ``CORS_ORIGINS=https://a.com,https://b.com``).
+A single cached `Settings` instance (`get_settings()` / module-level `settings`) is the one
+source of truth for configuration. Every field is **required** and is supplied exclusively
+from the environment (or the `.env` file) — there are no in-code default values, so no
+configuration is silently hardcoded and a missing variable fails fast at startup with a
+clear error. List-typed values accept comma-separated strings in the environment (e.g.
+``CORS_ORIGINS=https://a.com,https://b.com``).
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
@@ -18,143 +22,153 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # ``_split_csv`` validator can parse plain comma-separated environment strings.
 CSVList = Annotated[list[str], NoDecode]
 
-# Known-insecure placeholder; production refuses to boot with it (see the validator).
+# The backend package root (…/backend), used to locate the `.env` file regardless of the
+# process's current working directory (whether uvicorn is launched from the repo root or
+# from backend/). Without this, a wrong CWD would leave every required field unset.
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+
+# Known-insecure placeholder shipped in `.env.example`; production refuses to boot with it
+# (see the validator).
 _DEFAULT_SECRET_KEY = "CHANGE_ME_DEV_SECRET_NOT_FOR_PROD"
 
 
 class Settings(BaseSettings):
-    """Strongly-typed application configuration."""
+    """Strongly-typed application configuration.
+
+    All fields are required: values come from the environment / `.env`, never from in-code
+    defaults. Set a list-valued field to an empty string (e.g. ``TRUSTED_PROXIES=``) for an
+    empty list.
+    """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_BACKEND_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
     )
 
     # --- App / meta ---
-    PROJECT_NAME: str = "ShortlyX"
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = False
-    API_V1_PREFIX: str = "/api/v1"
-    BASE_URL: str = "http://localhost:8000"
+    PROJECT_NAME: str
+    ENVIRONMENT: str
+    DEBUG: bool
+    API_V1_PREFIX: str
+    BASE_URL: str
 
     # --- Server ---
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
-    LOG_LEVEL: str = "INFO"
-    LOG_JSON: bool = True
+    HOST: str
+    PORT: int
+    LOG_LEVEL: str
+    LOG_JSON: bool
     # IPs or CIDR ranges of reverse proxies whose X-Forwarded-For may be trusted.
-    # When empty (the default), X-Forwarded-For is ignored and the socket peer is used.
-    TRUSTED_PROXIES: CSVList = []
+    # Empty (``TRUSTED_PROXIES=``) ignores X-Forwarded-For and uses the socket peer.
+    TRUSTED_PROXIES: CSVList
 
     # --- Database ---
-    # Provide either DATABASE_URL directly, or the POSTGRES_* parts below and let the
-    # validator assemble an async URL from them. An explicit DATABASE_URL always wins
-    # (e.g. the test suite sets it to a SQLite URL).
-    DATABASE_URL: str = ""
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
-    POSTGRES_DB: str = "shortlyx"
-    DB_POOL_SIZE: int = 20
-    DB_MAX_OVERFLOW: int = 10
-    DB_POOL_TIMEOUT: int = 30
-    DB_POOL_RECYCLE: int = 1800
-    DB_ECHO: bool = False
+    # Set DATABASE_URL directly, or leave it empty (``DATABASE_URL=``) to have it assembled
+    # from the POSTGRES_* parts below. An explicit DATABASE_URL always wins (e.g. the test
+    # suite sets it to a SQLite URL).
+    DATABASE_URL: str
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+    DB_POOL_SIZE: int
+    DB_MAX_OVERFLOW: int
+    DB_POOL_TIMEOUT: int
+    DB_POOL_RECYCLE: int
+    DB_ECHO: bool
 
     # --- Redis ---
-    REDIS_URL: str = "redis://redis:6379/0"
-    REDIS_MAX_CONNECTIONS: int = 50
-    CACHE_TTL_SECONDS: int = 86400
-    NEGATIVE_CACHE_TTL_SECONDS: int = 30
-    CLICK_STREAM_KEY: str = "clicks:stream"
-    CLICK_STREAM_MAXLEN: int = 1_000_000
-    CLICK_CONSUMER_GROUP: str = "clickflush"
-    CLICK_FLUSH_BATCH: int = 500
-    CLICK_FLUSH_ENABLED: bool = True
-    CLICK_FLUSH_INTERVAL_SECONDS: float = 5.0
+    REDIS_URL: str
+    REDIS_MAX_CONNECTIONS: int
+    CACHE_TTL_SECONDS: int
+    NEGATIVE_CACHE_TTL_SECONDS: int
+    CLICK_STREAM_KEY: str
+    CLICK_STREAM_MAXLEN: int
+    CLICK_CONSUMER_GROUP: str
+    CLICK_FLUSH_BATCH: int
+    CLICK_FLUSH_ENABLED: bool
+    CLICK_FLUSH_INTERVAL_SECONDS: float
 
     # --- Security / JWT ---
-    SECRET_KEY: str = _DEFAULT_SECRET_KEY
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
-    JWT_ISSUER: str = "shortlyx"
-    JWT_AUDIENCE: str = "shortlyx-api"
-    LINK_PASSWORD_TOKEN_EXPIRE_MINUTES: int = 30
+    SECRET_KEY: str
+    JWT_ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_DAYS: int
+    JWT_ISSUER: str
+    JWT_AUDIENCE: str
+    LINK_PASSWORD_TOKEN_EXPIRE_MINUTES: int
     # Single-use action tokens (email verification, password reset, email change).
-    EMAIL_VERIFY_TOKEN_EXPIRE_HOURS: int = 24
-    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
-    EMAIL_CHANGE_TOKEN_EXPIRE_HOURS: int = 24
+    EMAIL_VERIFY_TOKEN_EXPIRE_HOURS: int
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int
+    EMAIL_CHANGE_TOKEN_EXPIRE_HOURS: int
 
     # --- Email / SMTP ---
     # Public base URL of the frontend; used to build links in transactional emails.
-    FRONTEND_URL: str = "http://localhost:5173"
-    EMAIL_FROM: str = "no-reply@shortlyx.local"
-    EMAIL_FROM_NAME: str = "ShortlyX"
+    FRONTEND_URL: str
+    EMAIL_FROM: str
+    EMAIL_FROM_NAME: str
     # SMTP transport. When SMTP_HOST is empty, email sending is disabled: the message is
-    # logged instead of sent, so registration/reset flows still work in dev without a
-    # mail server. Configure these in production to actually deliver mail.
-    SMTP_HOST: str = ""
-    SMTP_PORT: int = 587
-    SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_USE_TLS: bool = True  # STARTTLS on a plaintext port (e.g. 587)
-    SMTP_USE_SSL: bool = False  # implicit TLS (e.g. 465)
-    SMTP_TIMEOUT_SECONDS: int = 10
+    # logged instead of sent, so registration/reset flows still work without a mail server.
+    SMTP_HOST: str
+    SMTP_PORT: int
+    SMTP_USERNAME: str
+    SMTP_PASSWORD: str
+    SMTP_USE_TLS: bool  # STARTTLS on a plaintext port (e.g. 587)
+    SMTP_USE_SSL: bool  # implicit TLS (e.g. 465)
+    SMTP_TIMEOUT_SECONDS: int
 
     # --- Password hashing ---
-    ARGON2_TIME_COST: int = 3
-    ARGON2_MEMORY_COST: int = 65536
-    ARGON2_PARALLELISM: int = 4
-    PASSWORD_MIN_LENGTH: int = 8
-    PASSWORD_MAX_LENGTH: int = 128
+    ARGON2_TIME_COST: int
+    ARGON2_MEMORY_COST: int
+    ARGON2_PARALLELISM: int
+    PASSWORD_MIN_LENGTH: int
+    PASSWORD_MAX_LENGTH: int
 
     # --- Shortcode ---
-    SHORTCODE_LENGTH: int = 7
-    SHORTCODE_MAX_LENGTH: int = 12
-    SHORTCODE_ALPHABET: str = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    SHORTCODE_MAX_RETRIES: int = 5
-    CUSTOM_ALIAS_MIN_LENGTH: int = 3
-    CUSTOM_ALIAS_MAX_LENGTH: int = 64
+    SHORTCODE_LENGTH: int
+    SHORTCODE_MAX_LENGTH: int
+    SHORTCODE_ALPHABET: str
+    SHORTCODE_MAX_RETRIES: int
+    CUSTOM_ALIAS_MIN_LENGTH: int
+    CUSTOM_ALIAS_MAX_LENGTH: int
 
     # --- URL validation / SSRF ---
-    MAX_URL_LENGTH: int = 2048
-    ALLOWED_URL_SCHEMES: CSVList = ["http", "https"]
-    SSRF_PROTECTION_ENABLED: bool = True
-    SSRF_ALLOW_PRIVATE_HOSTS: bool = False
-    SSRF_HOST_ALLOWLIST: CSVList = []
+    MAX_URL_LENGTH: int
+    ALLOWED_URL_SCHEMES: CSVList
+    SSRF_PROTECTION_ENABLED: bool
+    SSRF_ALLOW_PRIVATE_HOSTS: bool
+    SSRF_HOST_ALLOWLIST: CSVList
 
     # --- Rate limiting ---
-    RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_ANON_PER_MINUTE: int = 30
-    RATE_LIMIT_ANON_WINDOW_SECONDS: int = 60
-    RATE_LIMIT_AUTH_PER_MINUTE: int = 120
-    RATE_LIMIT_AUTH_WINDOW_SECONDS: int = 60
-    RATE_LIMIT_REDIRECT_ANON_PER_MINUTE: int = 300
-    RATE_LIMIT_REDIRECT_WINDOW_SECONDS: int = 60
+    RATE_LIMIT_ENABLED: bool
+    RATE_LIMIT_ANON_PER_MINUTE: int
+    RATE_LIMIT_ANON_WINDOW_SECONDS: int
+    RATE_LIMIT_AUTH_PER_MINUTE: int
+    RATE_LIMIT_AUTH_WINDOW_SECONDS: int
+    RATE_LIMIT_REDIRECT_ANON_PER_MINUTE: int
+    RATE_LIMIT_REDIRECT_WINDOW_SECONDS: int
 
     # --- Redirect ---
-    REDIRECT_STATUS_CODE: int = 307
-    # Request header carrying the visitor's ISO 3166-1 alpha-2 country code, set by a CDN
-    # or reverse proxy (e.g. Cloudflare's "CF-IPCountry"). Empty disables country capture;
-    # only enable it when a trusted upstream sets the header, since clients can forge it.
-    COUNTRY_HEADER: str = ""
+    REDIRECT_STATUS_CODE: int
+    # Request header carrying the visitor's ISO 3166-1 alpha-2 country code, set by a CDN or
+    # reverse proxy (e.g. Cloudflare's "CF-IPCountry"). Empty (``COUNTRY_HEADER=``) disables
+    # country capture; only enable it when a trusted upstream sets the header.
+    COUNTRY_HEADER: str
 
     # --- CORS / headers ---
-    CORS_ORIGINS: CSVList = ["*"]
+    CORS_ORIGINS: CSVList
     # The API authenticates with Bearer headers, not cookies, so credentialed CORS is
     # unnecessary; enabling it requires an explicit CORS_ORIGINS list (never "*").
-    CORS_ALLOW_CREDENTIALS: bool = False
-    CORS_ALLOW_METHODS: CSVList = ["*"]
-    CORS_ALLOW_HEADERS: CSVList = ["*"]
-    SECURITY_HEADERS_ENABLED: bool = True
+    CORS_ALLOW_CREDENTIALS: bool
+    CORS_ALLOW_METHODS: CSVList
+    CORS_ALLOW_HEADERS: CSVList
+    SECURITY_HEADERS_ENABLED: bool
 
     # --- Pagination ---
-    DEFAULT_PAGE_SIZE: int = 20
-    MAX_PAGE_SIZE: int = 100
+    DEFAULT_PAGE_SIZE: int
+    MAX_PAGE_SIZE: int
 
     @field_validator(
         "ALLOWED_URL_SCHEMES",

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, String, text
+from sqlalchemy import Boolean, DateTime, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPKMixin
@@ -28,6 +29,14 @@ class User(UUIDPKMixin, TimestampMixin, Base):
         Boolean, nullable=False, default=False, server_default=text("false")
     )
     display_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Soft-delete marker: set when a user deletes their *own* account (which also flips
+    # ``is_active`` to False). Distinguishes a self-deleted account from one an admin merely
+    # suspended (both are inactive, but only a self-deletion has ``deleted_at`` set). Admins
+    # delete accounts for real — those rows are removed from the table, not marked here.
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # UI preferences. ``theme`` is one of "light"/"dark"/"system"; ``accent`` is either a
     # named preset key (e.g. "blue") or a "#rrggbb" hex string for a custom accent colour.

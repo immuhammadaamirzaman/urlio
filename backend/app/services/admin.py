@@ -25,6 +25,7 @@ from app.models.user import User
 from app.schemas.admin import AdminLinkRead, AdminStats, AdminUserRead, AuditRead
 from app.schemas.analytics import TimeBucket
 from app.services.analytics import _bucket_expr
+from app.services.auth import revoke_all_refresh_tokens
 from app.services.links import invalidate_link_cache, to_link_read
 
 
@@ -61,6 +62,7 @@ def _to_admin_user(user: User, link_count: int) -> AdminUserRead:
         is_active=user.is_active,
         is_superuser=user.is_superuser,
         email_verified=user.email_verified,
+        deleted_at=user.deleted_at,
         link_count=link_count,
         created_at=user.created_at,
     )
@@ -124,6 +126,11 @@ async def set_user_active(
         raise UserNotFoundError()
 
     target.is_active = is_active
+    if is_active:
+        # Reactivating restores login access and clears the self-delete marker. The user's
+        # links are intentionally left as they are (a self-delete deactivates them) — the
+        # restored user can re-enable whichever links they still want once logged back in.
+        target.deleted_at = None
 
     codes: list[str] = []
     disabled_links = 0
@@ -159,6 +166,54 @@ async def set_user_active(
             await invalidate_link_cache(redis, code)
 
     return _to_admin_user(target, await _link_count_for(session, user_id))
+
+
+async def delete_user(
+    session: AsyncSession,
+    redis: Redis,
+    *,
+    actor: User,
+    user_id: uuid.UUID,
+) -> None:
+    """Permanently delete a user and all their data. Admin-only, irreversible.
+
+    This is the hard counterpart to a user's own soft delete (``services.users``): the row
+    is removed, cascading to the user's links and their clicks. Audit-log entries authored
+    by the removed user are preserved (their ``actor_id`` is set NULL by the FK), so the
+    trail — including *this* deletion — survives.
+    """
+    if user_id == actor.id:
+        # Guard against an admin deleting their own account out from under themselves.
+        raise NotAuthorizedError("You cannot delete your own account.")
+
+    target = await session.get(User, user_id)
+    if target is None:
+        raise UserNotFoundError()
+
+    email = target.email
+    # Capture link codes before the cascade removes the rows, so we can drop their cache.
+    codes = list(
+        (
+            await session.execute(select(Link.code).where(Link.owner_id == user_id))
+        ).scalars().all()
+    )
+
+    await session.delete(target)
+    await record_audit(
+        session,
+        actor_id=actor.id,
+        action="user.deleted",
+        target_type="user",
+        target_id=str(user_id),
+        detail=f"email={email}",
+        commit=False,
+    )
+    await session.commit()
+
+    # Kill any live sessions and drop the redirect cache for the removed links.
+    await revoke_all_refresh_tokens(redis, user_id)
+    for code in codes:
+        await invalidate_link_cache(redis, code)
 
 
 # --- Links -----------------------------------------------------------------

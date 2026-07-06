@@ -171,3 +171,134 @@ async def test_admin_audit_log_records_mutations(client, db_session):
     assert audit.status_code == 200
     actions = [entry["action"] for entry in audit.json()["items"]]
     assert "link.deleted" in actions
+
+
+# --- Admin user deletion (hard delete, unlike a user's own soft delete) -----
+async def test_admin_delete_user_hard_deletes_and_cascades(client, db_session, fake_redis):
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.models.click import Click
+    from app.models.link import Link
+    from app.models.user import User
+
+    admin = await _make_admin(client, db_session)
+    user_headers = await _user_headers(client, "goner@example.com")
+    created = await client.post(
+        f"{API}/links", headers=user_headers, json={"target_url": "https://ex.com/g"}
+    )
+    code = created.json()["code"]
+    link_id = uuid.UUID(created.json()["id"])
+
+    # Generate and persist a click so we can prove clicks cascade away with the user too.
+    await client.get(f"/{code}")
+    await flush_click_stream(db_session, fake_redis)
+    assert (
+        await db_session.execute(select(Click).where(Click.link_id == link_id))
+    ).first() is not None
+
+    users = await client.get(f"{API}/admin/users", headers=admin, params={"q": "goner"})
+    goner_id = users.json()["items"][0]["id"]
+
+    resp = await client.delete(f"{API}/admin/users/{goner_id}", headers=admin)
+    assert resp.status_code == 204
+
+    # The user, their link, and its clicks are all physically removed (not merely disabled).
+    assert (
+        await db_session.execute(select(User).where(User.email == "goner@example.com"))
+    ).scalar_one_or_none() is None
+    assert (
+        await db_session.execute(select(Link).where(Link.code == code))
+    ).scalar_one_or_none() is None
+    assert (
+        await db_session.execute(select(Click).where(Click.link_id == link_id))
+    ).first() is None
+    gone = await client.get(f"{API}/admin/users", headers=admin, params={"q": "goner"})
+    assert gone.json()["total"] == 0
+
+    # The short URL no longer resolves, and login fails as an *unknown* account (the row is
+    # gone) — distinct from the "inactive" response a soft-deleted account would give.
+    assert (await client.get(f"/{code}", follow_redirects=False)).status_code == 404
+    login = await client.post(
+        f"{API}/auth/login", json={"email": "goner@example.com", "password": "password123"}
+    )
+    assert login.status_code == 401
+    assert login.json()["error"]["code"] == "invalid_credentials"
+
+    # The deletion is recorded in the audit log.
+    audit = await client.get(f"{API}/admin/audit", headers=admin)
+    assert "user.deleted" in [entry["action"] for entry in audit.json()["items"]]
+
+
+async def test_admin_cannot_delete_self(client, db_session):
+    admin = await _make_admin(client, db_session)
+    me = await client.get(f"{API}/admin/users", headers=admin, params={"q": "admin@"})
+    admin_id = me.json()["items"][0]["id"]
+
+    resp = await client.delete(f"{API}/admin/users/{admin_id}", headers=admin)
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "not_authorized"
+    # The admin still exists.
+    still = await client.get(f"{API}/admin/users", headers=admin, params={"q": "admin@"})
+    assert still.json()["total"] == 1
+
+
+async def test_admin_delete_nonexistent_user_returns_404(client, db_session):
+    import uuid
+
+    admin = await _make_admin(client, db_session)
+    resp = await client.delete(f"{API}/admin/users/{uuid.uuid4()}", headers=admin)
+    assert resp.status_code == 404
+    assert resp.json()["error"]["code"] == "user_not_found"
+
+
+async def test_admin_delete_user_requires_superuser(client, register_and_login):
+    import uuid
+
+    plain, _ = await register_and_login(email="plain-del@example.com")
+    # The superuser dependency rejects before the handler runs (target need not exist).
+    resp = await client.delete(f"{API}/admin/users/{uuid.uuid4()}", headers=plain)
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "not_authorized"
+
+
+async def test_admin_reactivating_restores_soft_deleted_account(client, db_session):
+    # A user soft-deletes their own account; an admin can restore login access.
+    user_headers = await _user_headers(client, "comeback@example.com")
+    created = await client.post(
+        f"{API}/links", headers=user_headers, json={"target_url": "https://ex.com/cb"}
+    )
+    code = created.json()["code"]
+
+    ok = await client.request(
+        "DELETE", f"{API}/users/me", headers=user_headers, json={"password": "password123"}
+    )
+    assert ok.status_code == 204
+    # The self-delete deactivated the link.
+    assert (await client.get(f"/{code}", follow_redirects=False)).status_code == 404
+
+    admin = await _make_admin(client, db_session)
+    row = (
+        await client.get(f"{API}/admin/users", headers=admin, params={"q": "comeback"})
+    ).json()["items"][0]
+    assert row["is_active"] is False
+    assert row["deleted_at"] is not None
+
+    resp = await client.patch(
+        f"{API}/admin/users/{row['id']}",
+        headers=admin,
+        json={"is_active": True, "disable_links": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_active"] is True
+    assert resp.json()["deleted_at"] is None
+
+    # The restored user can log in again...
+    relogin = await client.post(
+        f"{API}/auth/login", json={"email": "comeback@example.com", "password": "password123"}
+    )
+    assert relogin.status_code == 200
+    # ...but reactivation does NOT auto-re-enable their links: they stay disabled until the
+    # user turns them back on themselves.
+    assert (await client.get(f"/{code}", follow_redirects=False)).status_code == 404

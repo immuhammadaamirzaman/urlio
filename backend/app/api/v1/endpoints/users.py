@@ -52,7 +52,9 @@ async def delete_me(
     session: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis_dep),
 ) -> Response:
-    await delete_account(session, user, data.password)
+    # Soft delete: the account is disabled (not erased). Revoke sessions so any live tokens
+    # stop working immediately.
+    await delete_account(session, redis, user, data.password)
     await revoke_all_refresh_tokens(redis, user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
