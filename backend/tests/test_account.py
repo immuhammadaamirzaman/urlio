@@ -398,6 +398,43 @@ async def test_delete_account_retains_data_and_deactivates_links(
     assert (await client.get(f"/{code}", follow_redirects=False)).status_code == 404
 
 
+async def test_self_delete_sends_closed_email(client, register_and_login, monkeypatch):
+    sent: list[str] = []
+
+    async def _closed(to: str) -> bool:
+        sent.append(to)
+        return True
+
+    monkeypatch.setattr("app.services.users.send_account_closed_email", _closed)
+
+    headers, _ = await register_and_login(email="close-me@example.com", password="password123")
+    ok = await client.request(
+        "DELETE", f"{API}/users/me", headers=headers, json={"password": "password123"}
+    )
+    assert ok.status_code == 204
+    assert sent == ["close-me@example.com"]
+
+
+async def test_self_delete_wrong_password_sends_no_email(
+    client, register_and_login, monkeypatch
+):
+    # A failed (wrong-password) delete must not fire the closure email.
+    sent: list[str] = []
+
+    async def _closed(to: str) -> bool:
+        sent.append(to)
+        return True
+
+    monkeypatch.setattr("app.services.users.send_account_closed_email", _closed)
+
+    headers, _ = await register_and_login(email="stay@example.com", password="password123")
+    bad = await client.request(
+        "DELETE", f"{API}/users/me", headers=headers, json={"password": "wrong"}
+    )
+    assert bad.status_code == 403
+    assert sent == []
+
+
 async def test_soft_deleted_email_stays_reserved(client, register_and_login):
     # Because a self-delete retains the account (and its unique email) rather than erasing
     # it, the address cannot be re-registered — only an admin can restore or hard-delete it.

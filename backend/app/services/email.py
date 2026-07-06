@@ -110,3 +110,50 @@ async def send_email_change_email(to: str, token: str) -> bool:
         "If you didn't request this, you can ignore this email."
     )
     return await send_email(to, "Confirm your new ShortlyX email address", body)
+
+
+# --- Account-status notifications ------------------------------------------
+# These notify a user when their account's status changes. They take only an address
+# (no token/link) and, like every sender here, are best-effort: send_email never raises.
+async def send_account_deactivated_email(to: str) -> bool:
+    """Notify a user that an admin deactivated (suspended) their account."""
+    body = (
+        "Your ShortlyX account has been deactivated by an administrator.\n\n"
+        "While your account is deactivated you can't sign in and your short links no "
+        "longer redirect. Your data is retained, and access can be restored.\n\n"
+        "If you believe this was a mistake, please contact support."
+    )
+    return await send_email(to, "Your ShortlyX account has been deactivated", body)
+
+
+async def send_account_reactivated_email(to: str) -> bool:
+    """Notify a user that an admin restored (reactivated) their account."""
+    url = settings.FRONTEND_URL.rstrip("/")
+    body = (
+        "Good news — your ShortlyX account has been reactivated.\n\n"
+        f"You can sign in again at {url}\n\n"
+        "Any short links that were disabled stay disabled until you re-enable them."
+    )
+    return await send_email(to, "Your ShortlyX account has been reactivated", body)
+
+
+async def send_account_deleted_email(to: str) -> bool:
+    """Notify a user that an admin permanently deleted their account (hard delete)."""
+    body = (
+        "Your ShortlyX account has been permanently deleted by an administrator.\n\n"
+        "Your account, your short links, and their analytics have been removed and "
+        "cannot be recovered. Your short links no longer resolve.\n\n"
+        "If you believe this was a mistake, please contact support."
+    )
+    return await send_email(to, "Your ShortlyX account has been deleted", body)
+
+
+async def send_account_closed_email(to: str) -> bool:
+    """Confirm to a user that their own account was closed (self-service deletion)."""
+    body = (
+        "Your ShortlyX account has been closed at your request.\n\n"
+        "Your account is now deactivated and your short links no longer redirect. "
+        "If you'd like to come back, contact support to have your account restored.\n\n"
+        "If you didn't request this, please contact support immediately."
+    )
+    return await send_email(to, "Your ShortlyX account has been closed", body)

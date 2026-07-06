@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { adminListUsers, adminUpdateUser } from "../../api/admin";
+import { adminDeleteUser, adminListUsers, adminUpdateUser } from "../../api/admin";
 import type { AdminUserRead, Page } from "../../api/types";
 import { EmptyState, ErrorState } from "../../components/ErrorState";
 import { Modal } from "../../components/Modal";
@@ -19,6 +19,7 @@ export function AdminUsersTab() {
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [deactivating, setDeactivating] = useState<AdminUserRead | null>(null);
+  const [deleting, setDeleting] = useState<AdminUserRead | null>(null);
   const [disableLinks, setDisableLinks] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -59,6 +60,28 @@ export function AdminUsersTab() {
     } finally {
       setBusyId(null);
       setDeactivating(null);
+    }
+  }
+
+  async function handleDelete(user: AdminUserRead) {
+    setBusyId(user.id);
+    try {
+      await adminDeleteUser(user.id);
+      users.setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.filter((u) => u.id !== user.id),
+              total: prev.total === null ? null : Math.max(0, prev.total - 1),
+            }
+          : prev,
+      );
+      toast.success(`${user.email} permanently deleted.`);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusyId(null);
+      setDeleting(null);
     }
   }
 
@@ -130,28 +153,40 @@ export function AdminUsersTab() {
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       {u.is_superuser ? (
                         <span className="text-xs text-content-subtle">—</span>
-                      ) : u.is_active ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDisableLinks(true);
-                            setDeactivating(u);
-                          }}
-                          disabled={busyId === u.id}
-                          className="btn-danger text-xs"
-                        >
-                          Deactivate
-                        </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSetActive(u, true)}
-                          disabled={busyId === u.id}
-                          className="btn-secondary text-xs"
-                        >
-                          {busyId === u.id ? <Spinner className="h-3 w-3" /> : null}
-                          Reactivate
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          {u.is_active ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDisableLinks(true);
+                                setDeactivating(u);
+                              }}
+                              disabled={busyId === u.id}
+                              className="btn-secondary text-xs"
+                            >
+                              Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetActive(u, true)}
+                              disabled={busyId === u.id}
+                              className="btn-secondary text-xs"
+                            >
+                              {busyId === u.id ? <Spinner className="h-3 w-3" /> : null}
+                              Reactivate
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setDeleting(u)}
+                            disabled={busyId === u.id}
+                            className="btn-danger text-xs"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -206,6 +241,42 @@ export function AdminUsersTab() {
               >
                 {busyId === deactivating.id ? <Spinner className="h-4 w-4" /> : null}
                 Deactivate
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={deleting !== null}
+        title="Permanently delete this user?"
+        onClose={() => setDeleting(null)}
+      >
+        {deleting && (
+          <div className="space-y-4">
+            <p className="text-sm text-content-muted">
+              <strong>{deleting.email}</strong> and all of their data —{" "}
+              {formatNumber(deleting.link_count)} link
+              {deleting.link_count === 1 ? "" : "s"} and their click analytics — will be{" "}
+              <strong>permanently removed</strong>. This cannot be undone. The user is
+              emailed a deletion notice.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleting(null)}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleting)}
+                disabled={busyId === deleting.id}
+                className="btn-danger"
+              >
+                {busyId === deleting.id ? <Spinner className="h-4 w-4" /> : null}
+                Delete permanently
               </button>
             </div>
           </div>

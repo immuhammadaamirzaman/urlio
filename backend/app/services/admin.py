@@ -26,6 +26,11 @@ from app.schemas.admin import AdminLinkRead, AdminStats, AdminUserRead, AuditRea
 from app.schemas.analytics import TimeBucket
 from app.services.analytics import _bucket_expr
 from app.services.auth import revoke_all_refresh_tokens
+from app.services.email import (
+    send_account_deactivated_email,
+    send_account_deleted_email,
+    send_account_reactivated_email,
+)
 from app.services.links import invalidate_link_cache, to_link_read
 
 
@@ -165,6 +170,12 @@ async def set_user_active(
         for code in codes:
             await invalidate_link_cache(redis, code)
 
+    # Notify the user their account status changed (best-effort; never blocks the action).
+    if is_active:
+        await send_account_reactivated_email(target.email)
+    else:
+        await send_account_deactivated_email(target.email)
+
     return _to_admin_user(target, await _link_count_for(session, user_id))
 
 
@@ -214,6 +225,10 @@ async def delete_user(
     await revoke_all_refresh_tokens(redis, user_id)
     for code in codes:
         await invalidate_link_cache(redis, code)
+
+    # Let the (now-removed) user know their account was deleted. Uses the email captured
+    # before the delete; best-effort, so a mail failure never undoes the deletion.
+    await send_account_deleted_email(email)
 
 
 # --- Links -----------------------------------------------------------------
