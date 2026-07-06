@@ -60,6 +60,19 @@ async def update_user(
     )
 
 
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: uuid.UUID,
+    actor: User = Depends(get_current_superuser),
+    session: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis_dep),
+) -> Response:
+    # Hard delete: removes the user and cascades to their links/clicks. (A user's own
+    # /users/me deletion is a soft delete that merely disables the account.)
+    await admin_service.delete_user(session, redis, actor=actor, user_id=user_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/links", response_model=Page[AdminLinkRead])
 async def list_links(
     session: AsyncSession = Depends(get_db),
