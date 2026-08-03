@@ -11,6 +11,7 @@ Booktype==1.5
 cffi==2.0.0
 click==8.4.2
 colorama==0.4.6
+cryptography==45.0.3
 Django==6.0.6
 dnspython==2.8.0
 email-validator==2.3.0

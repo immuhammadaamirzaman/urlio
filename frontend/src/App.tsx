@@ -13,6 +13,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { SecretsPage } from "./pages/SecretsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 
@@ -91,6 +92,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="secrets" element={<SecretsPage />} />
+        <Route path="secrets/:token" element={<SecretsPage />} />
         <Route
           path="admin"
           element={
