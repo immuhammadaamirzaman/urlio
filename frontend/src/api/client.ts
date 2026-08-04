@@ -138,7 +138,17 @@ async function doFetch(path: string, opts: RequestOptions): Promise<Response> {
 }
 
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  let res = await doFetch(path, opts);
+  let res: Response;
+  try {
+    res = await doFetch(path, opts);
+  } catch (error) {
+    const message = error instanceof Error && error.message
+      ? error.message
+      : "Unable to reach the server.";
+    throw new ApiError(0, null, message === "Failed to fetch"
+      ? "The server could not be reached. Make sure the backend is running and try again."
+      : message);
+  }
 
   // Attempt a single transparent refresh + retry on a refreshable 401.
   if (res.status === 401 && opts.auth !== false && tokenStore.getRefresh()) {
@@ -147,7 +157,16 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
       // The access token may be stale — try one transparent refresh + retry. (An
       // unparseable body is treated as refreshable so a flaky proxy response still retries.)
       if (await refreshAccessToken()) {
-        res = await doFetch(path, opts);
+        try {
+          res = await doFetch(path, opts);
+        } catch (error) {
+          const message = error instanceof Error && error.message
+            ? error.message
+            : "Unable to reach the server.";
+          throw new ApiError(0, null, message === "Failed to fetch"
+            ? "The server could not be reached. Make sure the backend is running and try again."
+            : message);
+        }
         if (res.status === 401) {
           const retryCode = await peek401Code(res);
           if (retryCode !== null && SESSION_ENDED_CODES.has(retryCode)) {

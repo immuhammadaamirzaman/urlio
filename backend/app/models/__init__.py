@@ -3,6 +3,7 @@
 from app.models.audit import AuditLog
 from app.models.click import Click
 from app.models.link import Link
+from app.models.secret import SecretShare
 from app.models.user import User
 
-__all__ = ["User", "Link", "Click", "AuditLog"]
+__all__ = ["User", "Link", "Click", "AuditLog", "SecretShare"]

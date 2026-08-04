@@ -61,6 +61,11 @@ class UserNotFoundError(NotFoundError):
     message = "User not found."
 
 
+class SecretShareNotFoundError(NotFoundError):
+    code = "secret_not_found"
+    message = "That secret share could not be found."
+
+
 # --- Auth / tokens ---------------------------------------------------------
 class EmailAlreadyExistsError(AppError):
     status_code = 409
@@ -121,6 +126,18 @@ class EmailAlreadyVerifiedError(AppError):
     status_code = 409
     code = "email_already_verified"
     message = "This email address is already verified."
+
+
+class SecretShareConsumedError(AppError):
+    status_code = 409
+    code = "secret_already_consumed"
+    message = "This secret share has already been used."
+
+
+class SecretShareExpiredError(AppError):
+    status_code = 410
+    code = "secret_expired"
+    message = "This secret share has expired."
 
 
 # --- Links / shortcodes ----------------------------------------------------

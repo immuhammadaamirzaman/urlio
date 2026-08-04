@@ -116,6 +116,9 @@ Versioned API is under `/api/v1`; the redirect lives at the root.
 | `GET /{code}` | – | **Redirect** (307; 404 unknown, 410 expired, 401 if password) |
 | `POST /{code}` | – | Submit link password → redirect + grant cookie |
 | `GET /health`, `GET /readyz` | – | Liveness / readiness |
+| `POST /api/v1/secrets` | optional | Create a one-time encrypted secret share (returns token + expiry) |
+| `GET /api/v1/secrets/{token}` | – | Preview share metadata (non-consuming; safe for link unfurlers and bots) |
+| `GET /api/v1/secrets/{token}?reveal=true` | – | Open and consume the secret (single-use; concurrent opens: only one succeeds) |
 
 ### Example
 
@@ -128,6 +131,48 @@ curl -X POST localhost:8000/api/v1/links \
 
 # Follow it
 curl -i localhost:8000/Ab3xK9p     # 307 → Location: https://example.com/...
+```
+
+### Secret shares
+
+Create one-time encrypted secrets and share them safely. Important behavior:
+
+- `GET /api/v1/secrets/{token}` returns a non-consuming preview (safe for link unfurlers,
+  bots, and social media crawlers). It returns whether the share exists, whether it was 
+  already consumed, and the expiry — but not the secret itself.
+- `GET /api/v1/secrets/{token}?reveal=true` actually opens and consumes the secret (single-use).
+  This endpoint returns the full secret and marks it as consumed.
+- All subsequent accesses (with or without `?reveal=true`) will see the consumed status.
+
+**Never share a `?reveal=true` URL.** The link handed to a recipient is the frontend page
+`/secrets/<token>`, which previews on load and only sends `?reveal=true` when the recipient
+clicks "Reveal secret". Anything that fetches a URL on the recipient's behalf — chat app
+unfurlers, mail scanners, browser prefetch, a page reload, or React's development-mode
+double render — would otherwise consume the share before it is ever read, and the recipient
+would see `secret_already_consumed` on their first real attempt.
+
+Example flow:
+
+```bash
+# Create
+curl -X POST http://localhost:8000/api/v1/secrets -H 'content-type: application/json' \
+  -d '{"secret":"my secret","expires_in_seconds":900}'
+# Returns: { "token": "...", "expires_at": "..." }
+
+# Share this with the recipient: http://localhost:5173/secrets/<token>
+# The page then makes the two requests below.
+
+# Preview (non-consuming - safe for bots/crawlers, runs on page load)
+curl http://localhost:8000/api/v1/secrets/<token>
+# Returns: { "consumed": false, "expires_at": "..." }
+
+# Open and consume (one-time use - when user explicitly clicks "reveal")
+curl http://localhost:8000/api/v1/secrets/<token>?reveal=true
+# Returns: { "secret": "my secret", "expires_at": "..." }
+
+# Subsequent attempts
+curl http://localhost:8000/api/v1/secrets/<token>?reveal=true
+# Returns 409 Conflict: { "error": { "code": "secret_already_consumed", ... } }
 ```
 
 ## Scaling notes
