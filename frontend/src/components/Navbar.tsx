@@ -54,6 +54,9 @@ export function Navbar() {
               <NavLink to="/secrets" className={navLinkClass}>
                 Secrets
               </NavLink>
+              <NavLink to="/credentials" className={navLinkClass}>
+                Credentials
+              </NavLink>
               {user?.is_superuser && (
                 <NavLink to="/admin" className={navLinkClass}>
                   Admin
