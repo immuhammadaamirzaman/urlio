@@ -79,6 +79,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const syncedUserRef = useRef<string | null>(null);
   useEffect(() => {
     if (!user) {
+      // Signing out: if an account's theme was previously adopted, fall back to
+      // the app defaults rather than leaving that account's theme applied for
+      // whoever uses this browser next (or if the same user logs back in fresh).
+      if (syncedUserRef.current !== null) {
+        setModeState(DEFAULT_MODE);
+        setAccentState(DEFAULT_ACCENT);
+      }
       syncedUserRef.current = null;
       return;
     }
