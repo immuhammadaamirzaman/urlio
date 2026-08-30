@@ -8,6 +8,7 @@ import { Pagination } from "../../components/Pagination";
 import { PageLoader, Spinner } from "../../components/Spinner";
 import { useToast } from "../../context/ToastContext";
 import { useAsyncData } from "../../hooks/useAsyncData";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { errorMessage } from "../../lib/errors";
 import { formatDate, formatNumber, prettyUrl } from "../../lib/format";
 
@@ -17,19 +18,16 @@ type StatusFilter = "all" | "active" | "inactive";
 export function AdminLinksTab() {
   const toast = useToast();
   const [q, setQ] = useState("");
-  const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [offset, setOffset] = useState(0);
   const [deleting, setDeleting] = useState<AdminLinkRead | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const search = useDebouncedValue(q.trim());
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(q.trim());
-      setOffset(0);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q]);
+    setOffset(0);
+  }, [search]);
 
   const links = useAsyncData<Page<AdminLinkRead>>(
     () =>

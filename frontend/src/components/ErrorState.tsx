@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 interface ErrorStateProps {
   message: string;
   onRetry?: () => void;
@@ -23,7 +25,7 @@ export function EmptyState({
 }: {
   title: string;
   subtitle?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface px-6 py-16 text-center">

@@ -8,6 +8,7 @@ import { Pagination } from "../../components/Pagination";
 import { PageLoader, Spinner } from "../../components/Spinner";
 import { useToast } from "../../context/ToastContext";
 import { useAsyncData } from "../../hooks/useAsyncData";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { errorMessage } from "../../lib/errors";
 import { formatDate, formatNumber } from "../../lib/format";
 
@@ -16,20 +17,17 @@ const PAGE_SIZE = 20;
 export function AdminUsersTab() {
   const toast = useToast();
   const [q, setQ] = useState("");
-  const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [deactivating, setDeactivating] = useState<AdminUserRead | null>(null);
   const [deleting, setDeleting] = useState<AdminUserRead | null>(null);
   const [disableLinks, setDisableLinks] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const search = useDebouncedValue(q.trim());
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(q.trim());
-      setOffset(0);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q]);
+    setOffset(0);
+  }, [search]);
 
   const users = useAsyncData<Page<AdminUserRead>>(
     () => adminListUsers({ q: search, limit: PAGE_SIZE, offset }),

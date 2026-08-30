@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { createLink } from "../api/links";
 import type { LinkCreate, LinkRead } from "../api/types";
@@ -36,7 +37,7 @@ export function CreateLinkForm({
     setShowAdvanced(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 

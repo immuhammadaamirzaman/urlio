@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { listLinks } from "../api/links";
 import type { LinkSort } from "../api/links";
@@ -10,6 +10,7 @@ import { Modal } from "../components/Modal";
 import { Pagination } from "../components/Pagination";
 import { PageLoader } from "../components/Spinner";
 import { useAsyncData } from "../hooks/useAsyncData";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
 const PAGE_SIZE = 20;
 type StatusFilter = "all" | "active" | "inactive";
@@ -18,18 +19,16 @@ export function DashboardPage() {
   const [offset, setOffset] = useState(0);
   const [creating, setCreating] = useState(false);
   const [q, setQ] = useState("");
-  const [search, setSearch] = useState("");
   const [sort, setSort] = useState<LinkSort>("created_at");
   const [status, setStatus] = useState<StatusFilter>("all");
 
-  // Debounce typing into the actual search term (which triggers the fetch).
+  // The fetch keys off the debounced term so it fires once per pause in typing.
+  const search = useDebouncedValue(q.trim());
+
+  // A new search term reshuffles the result set, so restart from the first page.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(q.trim());
-      setOffset(0);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [q]);
+    setOffset(0);
+  }, [search]);
 
   const filtered = search !== "" || status !== "all";
 
@@ -51,25 +50,34 @@ export function DashboardPage() {
     else reload();
   }
 
-  function handleChanged(updated: LinkRead) {
-    setData((prev) =>
-      prev
-        ? { ...prev, items: prev.items.map((l) => (l.id === updated.id ? updated : l)) }
-        : prev,
-    );
-  }
+  // Stable identities so the memoized `LinkRow`s survive a parent re-render — this page
+  // re-renders on every keystroke in the search box. `setData` is a setState, so both
+  // close over nothing that changes.
+  const handleChanged = useCallback(
+    (updated: LinkRead) => {
+      setData((prev) =>
+        prev
+          ? { ...prev, items: prev.items.map((l) => (l.id === updated.id ? updated : l)) }
+          : prev,
+      );
+    },
+    [setData],
+  );
 
-  function handleDeleted(id: string) {
-    setData((prev) =>
-      prev
-        ? {
-            ...prev,
-            items: prev.items.filter((l) => l.id !== id),
-            total: prev.total !== null ? Math.max(0, prev.total - 1) : null,
-          }
-        : prev,
-    );
-  }
+  const handleDeleted = useCallback(
+    (id: string) => {
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.filter((l) => l.id !== id),
+              total: prev.total !== null ? Math.max(0, prev.total - 1) : null,
+            }
+          : prev,
+      );
+    },
+    [setData],
+  );
 
   return (
     <div className="space-y-6">

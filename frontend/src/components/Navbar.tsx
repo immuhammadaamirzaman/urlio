@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { errorMessage } from "../lib/errors";
 import { Logo } from "./Logo";
 import { MenuIcon } from "./ServiceIcons";
 import { ThemeToggle } from "./ThemeToggle";
@@ -37,6 +38,10 @@ export function Navbar({ onOpenNav }: NavbarProps) {
       await logout();
       toast.success("Signed out.");
       navigate("/login");
+    } catch (err) {
+      // `logout` clears local tokens even when the revoke call fails, so the user is
+      // signed out either way — but say so rather than leaking an unhandled rejection.
+      toast.error(errorMessage(err));
     } finally {
       setBusy(false);
     }

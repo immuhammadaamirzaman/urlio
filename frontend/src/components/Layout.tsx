@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 import { resendVerification } from "../api/auth";
@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext";
 import { errorMessage } from "../lib/errors";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { PageLoader } from "./Spinner";
 
 /** Slim reminder shown on every page until the user verifies their email. */
 function VerifyEmailBanner() {
@@ -64,7 +65,12 @@ export function Layout() {
         <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
         <main className="min-w-0 flex-1 px-4 py-8 md:px-6">
           <div className="mx-auto w-full max-w-5xl">
-            <Outlet />
+            {/* Boundary for the route chunks split out in App.tsx. It sits inside <main>
+                so the navbar and rail stay on screen while a chunk downloads, and the
+                spinner lands where the page content will. */}
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </div>
         </main>
       </div>
