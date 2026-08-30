@@ -10,6 +10,8 @@ import {
 } from "../api/secrets";
 import { CopyButton } from "../components/CopyButton";
 import { useToast } from "../context/ToastContext";
+import { errorMessage } from "../lib/errors";
+import { formatDateTime } from "../lib/format";
 
 const TTL_OPTIONS = [
   { label: "5 minutes", value: 300 },
@@ -26,38 +28,26 @@ const TTL_OPTIONS = [
  */
 const revealedSecrets = new Map<string, string>();
 
+/** Share-specific wording for the codes this page can provoke; everything else falls
+ *  through to the shared `errorMessage`, which already covers network and generic API
+ *  failures. */
+const SECRET_MESSAGES: Record<string, string> = {
+  secret_already_consumed:
+    "This secret has already been opened. Ask the sender to create a new one.",
+  secret_expired: "This secret link has expired. Ask the sender to create a new one.",
+  secret_not_found: "This secret link is not valid. Check that you copied the whole link.",
+  forbidden: "Please sign in again to create or open a secret share.",
+  not_authenticated: "Please sign in again to create or open a secret share.",
+};
+
 function getFriendlyErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
-    if (error.code === "secret_already_consumed") {
-      return "This secret has already been opened. Ask the sender to create a new one.";
-    }
-    if (error.code === "secret_expired") {
-      return "This secret link has expired. Ask the sender to create a new one.";
-    }
-    if (error.code === "secret_not_found") {
-      return "This secret link is not valid. Check that you copied the whole link.";
-    }
-    if (error.status === 403 || error.code === "forbidden" || error.code === "not_authenticated") {
-      return "Please sign in again to create or open a secret share.";
-    }
-    if (error.status === 0) {
-      return "The server could not be reached. Make sure the backend is running and try again.";
-    }
-    return error.message || fallback;
+    const specific =
+      SECRET_MESSAGES[error.code] ??
+      (error.status === 403 ? SECRET_MESSAGES.forbidden : undefined);
+    if (specific) return specific;
   }
-  if (error instanceof Error) {
-    if (error.message === "Failed to fetch") {
-      return "The server could not be reached. Make sure the backend is running and try again.";
-    }
-    return error.message || fallback;
-  }
-  return fallback;
-}
-
-function formatTimestamp(value: string | null): string | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+  return errorMessage(error) || fallback;
 }
 
 export function SecretsPage() {
@@ -242,9 +232,9 @@ export function SecretsPage() {
                     The secret is still waiting. It can be opened only once, so make sure you are
                     ready to copy it.
                   </p>
-                  {formatTimestamp(preview.expires_at) ? (
+                  {preview.expires_at ? (
                     <p className="mt-2 text-sm text-content-subtle">
-                      Available until: {formatTimestamp(preview.expires_at)}
+                      Available until: {formatDateTime(preview.expires_at)}
                     </p>
                   ) : null}
                   <button
@@ -284,16 +274,16 @@ export function SecretsPage() {
               <p className="mt-2 break-all rounded-xl border border-dashed border-border bg-canvas p-3 text-sm text-content-subtle">
                 {shareUrl}
               </p>
-              {formatTimestamp(createdExpiresAt) ? (
+              {createdExpiresAt ? (
                 <p className="mt-3 text-sm text-content-subtle">
-                  Expires at: {formatTimestamp(createdExpiresAt)}
+                  Expires at: {formatDateTime(createdExpiresAt)}
                 </p>
               ) : null}
             </div>
           ) : null}
 
           {openedSecret ? (
-            <div className="card rounded-2xl border border-brand-300 bg-brand-50 p-6 shadow-sm dark:border-brand-700 dark:bg-brand-950/20">
+            <div className="card rounded-2xl border border-brand-300 bg-brand-50 p-6 shadow-sm dark:border-brand-700 dark:bg-brand-900/20">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-content">Recovered secret</p>
                 <CopyButton value={openedSecret} label="Copy secret" />
@@ -301,9 +291,9 @@ export function SecretsPage() {
               <pre className="mt-3 whitespace-pre-wrap break-all rounded-xl border border-border bg-surface-muted p-3 text-sm text-content dark:bg-surface">
                 {openedSecret}
               </pre>
-              {formatTimestamp(openedExpiresAt) ? (
+              {openedExpiresAt ? (
                 <p className="mt-3 text-sm text-content-subtle">
-                  Link expiry was: {formatTimestamp(openedExpiresAt)}
+                  Link expiry was: {formatDateTime(openedExpiresAt)}
                 </p>
               ) : null}
             </div>

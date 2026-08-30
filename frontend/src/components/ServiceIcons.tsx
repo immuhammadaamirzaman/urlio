@@ -1,12 +1,14 @@
+import type { ReactNode } from "react";
+
 /**
- * Inline stroke icons for the service sidebar. Kept as plain SVG (no icon
- * dependency) and sized via `className` so they inherit the current text colour.
+ * Inline stroke icons, the single source for every icon in the app. Kept as plain SVG
+ * (no icon dependency) and sized via `className` so they inherit the current text colour.
  */
-interface IconProps {
+export interface IconProps {
   className?: string;
 }
 
-function Svg({ className = "h-5 w-5", children }: IconProps & { children: React.ReactNode }) {
+function Svg({ className = "h-5 w-5", children }: IconProps & { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -115,6 +117,47 @@ export function CloseIcon(props: IconProps) {
   return (
     <Svg {...props}>
       <path d="M6 6l12 12M18 6L6 18" />
+    </Svg>
+  );
+}
+
+/** Expand/collapse affordance — chevron. Rotate it with a `transform` class. */
+export function ChevronDownIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M19 9l-7 7-7-7" />
+    </Svg>
+  );
+}
+
+// --- Theme icons -----------------------------------------------------------
+// Shared by the navbar toggle and the appearance settings mode picker.
+
+/** Light theme — sun. */
+export function SunIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="5" />
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </Svg>
+  );
+}
+
+/** Dark theme — crescent moon. */
+export function MoonIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </Svg>
+  );
+}
+
+/** Follow the OS preference — display. */
+export function MonitorIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2" y="4" width="20" height="13" rx="2" />
+      <path d="M8 21h8M12 17v4" />
     </Svg>
   );
 }

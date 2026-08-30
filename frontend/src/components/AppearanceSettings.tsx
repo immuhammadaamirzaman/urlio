@@ -1,48 +1,19 @@
+import { useRef } from "react";
+import type { ComponentType, KeyboardEvent } from "react";
+
 import { useTheme } from "../context/ThemeContext";
 import { ACCENT_PRESETS, accentSwatch, isCustomAccent } from "../lib/theme";
 import type { ThemeMode } from "../lib/theme";
+import type { IconProps } from "./ServiceIcons";
+import { MonitorIcon, MoonIcon, SunIcon } from "./ServiceIcons";
 
 const RAINBOW =
   "conic-gradient(from 90deg, #ef4444, #f59e0b, #10b981, #06b6d4, #3b82f6, #8b5cf6, #ef4444)";
 
-function ModeIcon({ mode }: { mode: ThemeMode }) {
-  const common = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    className: "h-4 w-4",
-    "aria-hidden": true,
-  };
-  if (mode === "light") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="5" />
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-      </svg>
-    );
-  }
-  if (mode === "dark") {
-    return (
-      <svg {...common}>
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-      </svg>
-    );
-  }
-  return (
-    <svg {...common}>
-      <rect x="2" y="4" width="20" height="13" rx="2" />
-      <path d="M8 21h8M12 17v4" />
-    </svg>
-  );
-}
-
-const MODES: { key: ThemeMode; label: string }[] = [
-  { key: "light", label: "Light" },
-  { key: "system", label: "System" },
-  { key: "dark", label: "Dark" },
+const MODES: { key: ThemeMode; label: string; Icon: ComponentType<IconProps> }[] = [
+  { key: "light", label: "Light", Icon: SunIcon },
+  { key: "system", label: "System", Icon: MonitorIcon },
+  { key: "dark", label: "Dark", Icon: MoonIcon },
 ];
 
 export function AppearanceSettings() {
@@ -51,6 +22,29 @@ export function AppearanceSettings() {
   const selectedLabel = custom
     ? accentSwatch(accent)
     : (ACCENT_PRESETS.find((p) => p.key === accent)?.label ?? accent);
+
+  const modeButtons = useRef<(HTMLButtonElement | null)[]>([]);
+
+  /**
+   * A `radiogroup` is a single tab stop: Tab moves past it, arrows move within it. Only
+   * the checked radio is tabbable (roving tabindex), and moving the focus also selects,
+   * which is the expected behaviour for a group whose options apply immediately.
+   */
+  function handleModeKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const delta =
+      event.key === "ArrowRight" || event.key === "ArrowDown"
+        ? 1
+        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+          ? -1
+          : 0;
+    if (delta === 0) return;
+    event.preventDefault();
+    const next = (index + delta + MODES.length) % MODES.length;
+    const target = MODES[next];
+    if (!target) return;
+    setMode(target.key);
+    modeButtons.current[next]?.focus();
+  }
 
   return (
     <section className="card p-5">
@@ -67,22 +61,27 @@ export function AppearanceSettings() {
           aria-label="Theme mode"
           className="inline-flex rounded-lg border border-border bg-surface-muted p-1"
         >
-          {MODES.map((m) => {
+          {MODES.map((m, index) => {
             const active = mode === m.key;
             return (
               <button
                 key={m.key}
+                ref={(el) => {
+                  modeButtons.current[index] = el;
+                }}
                 type="button"
                 role="radio"
                 aria-checked={active}
+                tabIndex={active ? 0 : -1}
                 onClick={() => setMode(m.key)}
+                onKeyDown={(e) => handleModeKeyDown(e, index)}
                 className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   active
                     ? "bg-surface text-content shadow-sm"
                     : "text-content-muted hover:text-content"
                 }`}
               >
-                <ModeIcon mode={m.key} />
+                <m.Icon className="h-4 w-4" />
                 {m.label}
               </button>
             );
@@ -157,9 +156,11 @@ export function AppearanceSettings() {
         <span className="rounded-full bg-brand-500/15 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300">
           Badge
         </span>
-        <a className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">
+        {/* A swatch, not a destination — an <a> with no href is not a link, so this
+            stays a span and only borrows the link styling. */}
+        <span className="text-sm font-medium text-brand-600 underline dark:text-brand-400">
           Link
-        </a>
+        </span>
       </div>
     </section>
   );

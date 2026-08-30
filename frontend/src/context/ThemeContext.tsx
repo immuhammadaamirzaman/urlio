@@ -16,6 +16,7 @@ import {
   accentToBrandVars,
   applyBrandVars,
   applyResolvedMode,
+  isThemeMode,
   loadStoredTheme,
   resolveMode,
   saveStoredTheme,
@@ -36,20 +37,25 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const stored = () => loadStoredTheme();
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, setUser } = useAuth();
 
-  const [mode, setModeState] = useState<ThemeMode>(() => stored()?.mode ?? DEFAULT_MODE);
-  const [accent, setAccentState] = useState<string>(() => stored()?.accent ?? DEFAULT_ACCENT);
+  // One read of localStorage, shared by both initializers.
+  const [initial] = useState(loadStoredTheme);
+  const [mode, setModeState] = useState<ThemeMode>(initial.mode);
+  const [accent, setAccentState] = useState<string>(initial.accent);
   const [resolvedMode, setResolvedMode] = useState<ResolvedMode>(() => resolveMode(mode));
 
   // Keep the latest values in refs so the debounced sync always sees "both" fields.
+  // Written from an effect rather than during render: `setMode`/`setAccent` only ever
+  // run from event handlers, which is after the previous commit's effects have flushed,
+  // so the refs are always current by the time they are read.
   const modeRef = useRef(mode);
-  modeRef.current = mode;
   const accentRef = useRef(accent);
-  accentRef.current = accent;
+  useEffect(() => {
+    modeRef.current = mode;
+    accentRef.current = accent;
+  }, [mode, accent]);
 
   // Tracks the last mode we painted, so we can tell a real light/dark flip from
   // the first apply on mount or a change that only touched the accent.
@@ -65,15 +71,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const flipped = paintedModeRef.current !== null && paintedModeRef.current !== resolved;
     paintedModeRef.current = resolved;
 
+    // Derived once and shared: the DOM needs these now and the cache below stores the
+    // same values. Recomputing would mean building the 10-shade scale twice on every
+    // change event the colour picker emits while being dragged.
+    const brandVars = accentToBrandVars(accent);
+
     const apply = () => {
       applyResolvedMode(resolved);
-      applyBrandVars(accentToBrandVars(accent));
+      applyBrandVars(brandVars);
     };
     if (flipped) withThemeTransition(apply);
     else apply();
 
     setResolvedMode(resolved);
-    saveStoredTheme(mode, accent);
+    saveStoredTheme(mode, accent, brandVars);
   }, [mode, accent]);
 
   // Follow the OS preference live while in "system" mode.
@@ -109,11 +120,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     if (syncedUserRef.current === user.id) return;
     syncedUserRef.current = user.id;
-    const serverMode: ThemeMode =
-      user.theme === "light" || user.theme === "dark" || user.theme === "system"
-        ? user.theme
-        : DEFAULT_MODE;
-    setModeState(serverMode);
+    // Still validated at runtime: `theme` is typed from the schema, not verified.
+    setModeState(isThemeMode(user.theme) ? user.theme : DEFAULT_MODE);
     setAccentState(user.accent || DEFAULT_ACCENT);
   }, [user]);
 

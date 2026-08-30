@@ -1,12 +1,14 @@
+import type { ReactNode } from "react";
+
 import type { LinkRead } from "../api/types";
 
-export function isExpired(link: Pick<LinkRead, "expires_at">): boolean {
+function isExpired(link: Pick<LinkRead, "expires_at">): boolean {
   if (!link.expires_at) return false;
   const t = new Date(link.expires_at).getTime();
   return !Number.isNaN(t) && t < Date.now();
 }
 
-function Badge({ tone, children }: { tone: string; children: React.ReactNode }) {
+function Badge({ tone, children }: { tone: string; children: ReactNode }) {
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{children}</span>
   );
