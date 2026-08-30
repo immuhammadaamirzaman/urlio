@@ -66,6 +66,16 @@ class SecretShareNotFoundError(NotFoundError):
     message = "That secret share could not be found."
 
 
+class CredentialNotFoundError(NotFoundError):
+    code = "credential_not_found"
+    message = "Credential not found."
+
+
+class CredentialNotFoundError(NotFoundError):
+    code = "credential_not_found"
+    message = "Credential not found."
+
+
 # --- Auth / tokens ---------------------------------------------------------
 class EmailAlreadyExistsError(AppError):
     status_code = 409
@@ -77,6 +87,18 @@ class InvalidCredentialsError(AppError):
     status_code = 401
     code = "invalid_credentials"
     message = "Invalid email or password."
+
+
+class InvalidMasterPasswordError(AppError):
+    status_code = 400
+    code = "invalid_master_password"
+    message = "Invalid master password."
+
+
+class InvalidMasterPasswordError(AppError):
+    status_code = 400
+    code = "invalid_master_password"
+    message = "Invalid master password."
 
 
 class InvalidPasswordError(AppError):
