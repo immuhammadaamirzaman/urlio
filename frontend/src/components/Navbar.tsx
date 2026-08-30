@@ -4,6 +4,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { Logo } from "./Logo";
+import { MenuIcon } from "./ServiceIcons";
 import { ThemeToggle } from "./ThemeToggle";
 import { Tooltip } from "./Tooltip";
 
@@ -15,7 +16,16 @@ function navLinkClass({ isActive }: { isActive: boolean }): string {
   }`;
 }
 
-export function Navbar() {
+interface NavbarProps {
+  /** Opens the sidebar drawer on small screens. */
+  onOpenNav: () => void;
+}
+
+/**
+ * Slim top bar: brand, theme, and account actions. Service navigation lives in
+ * the left sidebar (see `Sidebar`).
+ */
+export function Navbar({ onOpenNav }: NavbarProps) {
   const { isAuthenticated, user, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
@@ -34,47 +44,26 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-        <Link to="/" className="text-lg text-content">
-          <Logo />
-        </Link>
+      {/* `md:px-6` lines the brand up with the sidebar's 24px item inset. */}
+      <div className="flex h-16 w-full items-center justify-between gap-4 px-4 md:px-6">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenNav}
+            aria-label="Open services menu"
+            className="-ml-1 rounded-lg p-2 text-content-muted transition-colors hover:bg-surface-muted hover:text-content md:hidden"
+          >
+            <MenuIcon />
+          </button>
+          <Link to="/" className="text-lg text-content">
+            <Logo />
+          </Link>
+        </div>
 
         <nav className="flex items-center gap-1">
           <ThemeToggle />
-          <Tooltip label="Create a new short link">
-            <NavLink to="/" end className={navLinkClass}>
-              Shorten
-            </NavLink>
-          </Tooltip>
           {isAuthenticated ? (
             <>
-              <Tooltip label="View, search, and manage all your short links">
-                <NavLink to="/dashboard" className={navLinkClass}>
-                  Dashboard
-                </NavLink>
-              </Tooltip>
-              <Tooltip label="Manage your profile, password, and appearance preferences">
-                <NavLink to="/settings" className={navLinkClass}>
-                  Settings
-                </NavLink>
-              </Tooltip>
-              <Tooltip label="Share sensitive text as a link that self-destructs after one view">
-                <NavLink to="/secrets" className={navLinkClass}>
-                  Secrets
-                </NavLink>
-              </Tooltip>
-              <Tooltip label="Securely store and retrieve encrypted login credentials">
-                <NavLink to="/credentials" className={navLinkClass}>
-                  Credentials
-                </NavLink>
-              </Tooltip>
-              {user?.is_superuser && (
-                <Tooltip label="Manage users, links, and audit logs (admin only)">
-                  <NavLink to="/admin" className={navLinkClass}>
-                    Admin
-                  </NavLink>
-                </Tooltip>
-              )}
               <span className="mx-2 hidden text-sm text-content-subtle sm:inline">
                 {user?.display_name || user?.email}
               </span>
