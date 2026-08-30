@@ -2,6 +2,8 @@
 // either a named preset key ("blue") or a "#rrggbb" custom hex. Both drive the
 // `--brand-*` and `.dark` CSS variables/class defined in index.css.
 
+import { prefersReducedMotion } from "./motion";
+
 export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
 export type Shade = (typeof SHADES)[number];
 /** A palette as hex strings keyed by shade. */
@@ -179,6 +181,45 @@ export function applyResolvedMode(resolved: ResolvedMode): void {
 export function applyBrandVars(vars: Record<string, string>): void {
   const root = document.documentElement;
   for (const [name, value] of Object.entries(vars)) root.style.setProperty(name, value);
+}
+
+/**
+ * Class that opts the document into a brief colour cross-fade. The matching
+ * rules live in index.css.
+ */
+export const THEME_TRANSITION_CLASS = "theme-switching";
+/** Keep in step with the transition-duration in index.css. */
+const THEME_TRANSITION_MS = 320;
+
+let themeTransitionTimer: number | null = null;
+
+/**
+ * Run a theme mutation so the colour change eases instead of snapping.
+ *
+ * The class is only present for the length of the fade. Leaving those blanket
+ * `*` transitions on permanently would tax every unrelated style change and
+ * fight the hover timings components define for themselves.
+ *
+ * Adding the class and mutating in the same task is deliberate: CSS resolves
+ * which properties transition from the *after*-change style, so one style recalc
+ * is enough to both arm and start the fade.
+ */
+export function withThemeTransition(apply: () => void): void {
+  if (prefersReducedMotion()) {
+    apply();
+    return;
+  }
+  const root = document.documentElement;
+  root.classList.add(THEME_TRANSITION_CLASS);
+  apply();
+
+  // Restart the clock on rapid switches so the class never gets stripped
+  // mid-fade by an earlier timer.
+  if (themeTransitionTimer !== null) window.clearTimeout(themeTransitionTimer);
+  themeTransitionTimer = window.setTimeout(() => {
+    root.classList.remove(THEME_TRANSITION_CLASS);
+    themeTransitionTimer = null;
+  }, THEME_TRANSITION_MS);
 }
 
 // --- Persistence (localStorage; also synced to the account server-side) -----

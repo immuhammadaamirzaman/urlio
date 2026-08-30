@@ -19,6 +19,7 @@ import {
   loadStoredTheme,
   resolveMode,
   saveStoredTheme,
+  withThemeTransition,
 } from "../lib/theme";
 import type { ResolvedMode, ThemeMode } from "../lib/theme";
 import { useAuth } from "./AuthContext";
@@ -50,13 +51,28 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const accentRef = useRef(accent);
   accentRef.current = accent;
 
+  // Tracks the last mode we painted, so we can tell a real light/dark flip from
+  // the first apply on mount or a change that only touched the accent.
+  const paintedModeRef = useRef<ResolvedMode | null>(null);
+
   // Apply to the DOM + persist locally whenever mode or accent changes. The boot
   // script in index.html applies the same thing before paint, so this is idempotent.
   useEffect(() => {
     const resolved = resolveMode(mode);
+    // Only cross-fade an actual light<->dark flip. Skipping the first apply keeps
+    // page load instant, and skipping accent-only changes keeps the colour picker
+    // tracking the drag instead of lagging a fade behind it.
+    const flipped = paintedModeRef.current !== null && paintedModeRef.current !== resolved;
+    paintedModeRef.current = resolved;
+
+    const apply = () => {
+      applyResolvedMode(resolved);
+      applyBrandVars(accentToBrandVars(accent));
+    };
+    if (flipped) withThemeTransition(apply);
+    else apply();
+
     setResolvedMode(resolved);
-    applyResolvedMode(resolved);
-    applyBrandVars(accentToBrandVars(accent));
     saveStoredTheme(mode, accent);
   }, [mode, accent]);
 
@@ -66,8 +82,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       const resolved: ResolvedMode = mq.matches ? "dark" : "light";
+      paintedModeRef.current = resolved;
       setResolvedMode(resolved);
-      applyResolvedMode(resolved);
+      // The OS flipping under us is still a light<->dark switch, so fade it too.
+      withThemeTransition(() => applyResolvedMode(resolved));
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
