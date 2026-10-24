@@ -72,7 +72,9 @@ export function Navbar({ onOpenNav }: NavbarProps) {
               <span className="mx-2 hidden text-sm text-content-subtle sm:inline">
                 {user?.display_name || user?.email}
               </span>
-              <Tooltip label="Sign out of your account on this device">
+              {/* Last control in the bar, so the bubble is right-anchored —
+                  centred it would hang off the edge of the page. */}
+              <Tooltip label="Sign out of your account on this device" placement="bottom-end">
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -90,7 +92,8 @@ export function Navbar({ onOpenNav }: NavbarProps) {
                   Sign in
                 </NavLink>
               </Tooltip>
-              <Tooltip label="Create a new account">
+              {/* Right-anchored for the same reason as "Sign out" above. */}
+              <Tooltip label="Create a new account" placement="bottom-end">
                 <Link to="/register" className="btn-primary text-sm">
                   Sign up
                 </Link>

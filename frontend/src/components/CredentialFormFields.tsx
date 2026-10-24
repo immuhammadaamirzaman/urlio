@@ -16,6 +16,7 @@ interface FieldProps {
   required?: boolean;
   minLength?: number;
   maxLength: number;
+  autoComplete: string;
 }
 
 function Field({
@@ -29,6 +30,7 @@ function Field({
   required = false,
   minLength,
   maxLength,
+  autoComplete,
 }: FieldProps) {
   const errorId = `${id}-error`;
   return (
@@ -45,6 +47,7 @@ function Field({
         required={required}
         minLength={minLength}
         maxLength={maxLength}
+        autoComplete={autoComplete}
         className="input"
         // Ties the message to the field so screen readers announce it on focus,
         // instead of leaving it as loose text that only sighted users connect.
@@ -69,6 +72,12 @@ interface CredentialFormFieldsProps {
 /**
  * The credential field set, shared by the create modal and the inline edit form so the
  * two stay identical in labels, limits, and validation wiring.
+ *
+ * On `autoComplete`: the four lower fields are vault *contents*, not this site's
+ * credentials, so they are marked `off` to keep the browser's password manager from
+ * offering to save a stored row as a ShortlyX login — or autofilling a ShortlyX login
+ * into a row being created. The master password is the user's own, so it stays
+ * `current-password` and a manager may fill it, matching MasterPasswordModal.
  */
 export function CredentialFormFields({
   values,
@@ -83,6 +92,7 @@ export function CredentialFormFields({
         id={`${prefix}-master-password`}
         label="Master Password"
         type="password"
+        autoComplete="current-password"
         value={values.masterPassword}
         onChange={(masterPassword) => onChange({ masterPassword })}
         placeholder="Enter your master password"
@@ -101,6 +111,7 @@ export function CredentialFormFields({
         error={errors.username_or_email}
         required
         maxLength={255}
+        autoComplete="off"
       />
       <Field
         id={`${prefix}-password`}
@@ -112,6 +123,7 @@ export function CredentialFormFields({
         error={errors.password}
         required
         maxLength={1024}
+        autoComplete="off"
       />
       <Field
         id={`${prefix}-detail`}
@@ -123,6 +135,7 @@ export function CredentialFormFields({
         error={errors.detail}
         required
         maxLength={255}
+        autoComplete="off"
       />
       <Field
         id={`${prefix}-url`}
@@ -133,6 +146,7 @@ export function CredentialFormFields({
         placeholder="https://example.com"
         error={errors.url}
         maxLength={2048}
+        autoComplete="off"
       />
     </>
   );

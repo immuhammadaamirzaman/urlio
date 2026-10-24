@@ -19,9 +19,27 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(",");
 
+/** Focusable data-entry controls, for choosing where a dialog opens focused. */
+const FIELDS = [
+  "input:not([disabled]):not([type=hidden])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+].join(",");
+
 export function Modal({ open, title, onClose, children }: ModalProps) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
+
+  // Read through a ref so the effect below can depend on `open` alone. Callers pass an
+  // inline arrow or a locally-declared function, so `onClose` gets a new identity on
+  // every parent render — and for the dialogs whose text input lives in the parent
+  // (the master-password prompt, delete-account confirm) that is every keystroke.
+  // Depending on it directly made the effect tear down and re-run mid-typing, which
+  // restored focus to the opener and then dragged it back, once per character.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   /**
    * `aria-modal="true"` is a promise to assistive tech that the rest of the page is
@@ -35,18 +53,24 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    // This effect runs after React has applied any `autoFocus`, so honour that choice
-    // first — otherwise we would steal focus from the field the dialog wants. Failing
-    // that, take the first focusable node, or the panel itself for read-only dialogs.
+    // Land on the first form control, so a dialog that exists to collect input focuses
+    // the input rather than the header's close button (which precedes it in the DOM).
+    //
+    // Deliberately not keyed off `[autofocus]`: React never writes that attribute, it
+    // polyfills `autoFocus` by calling focus() during commit — which happens before
+    // this passive effect, so matching on the attribute would find nothing and we would
+    // then steal focus away from the field React had just focused.
+    //
+    // Falls back to any focusable node, then the panel itself for read-only dialogs.
     const target =
-      panel.current?.querySelector<HTMLElement>("[autofocus]") ??
+      panel.current?.querySelector<HTMLElement>(FIELDS) ??
       panel.current?.querySelector<HTMLElement>(FOCUSABLE) ??
       panel.current;
     target?.focus();
 
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab" || !panel.current) return;
@@ -72,7 +96,7 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
