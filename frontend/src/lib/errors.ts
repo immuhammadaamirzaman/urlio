@@ -13,7 +13,10 @@ export function errorMessage(err: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-/** The stable backend error code, if available (e.g. "alias_conflict"). */
-export function errorCode(err: unknown): string | null {
-  return err instanceof ApiError ? err.code : null;
+/**
+ * True for the rejection `fetch` produces when its `AbortSignal` fires. Callers use this
+ * to tell "the caller cancelled" apart from a genuine failure worth reporting.
+ */
+export function isAbortError(err: unknown): boolean {
+  return err instanceof Error && err.name === "AbortError";
 }

@@ -8,11 +8,25 @@ interface TooltipProps {
   children: ReactNode;
   className?: string;
   /** Where the bubble sits relative to the trigger. */
-  placement?: "bottom" | "right";
+  placement?: "bottom" | "bottom-end" | "right";
 }
 
+/*
+ * The bubble is `absolute` and `whitespace-nowrap`, so it can be wider than its
+ * trigger and sticks out in whichever direction the placement sends it. Nothing
+ * clips it, which is the point — but it also means a bubble that reaches past
+ * the right edge of the viewport widens the document and the page grows a
+ * horizontal scrollbar. That happens whether or not the tooltip is showing:
+ * resting state is `opacity-0`, not `display: none`, so it occupies layout the
+ * whole time.
+ *
+ * Hence `bottom-end` for triggers that sit against the right edge of the page.
+ * It lines the bubble's right edge up with the trigger's instead of centring
+ * it, so the bubble can only grow inward.
+ */
 const PLACEMENT: Record<NonNullable<TooltipProps["placement"]>, string> = {
   bottom: "left-1/2 top-full mt-2 -translate-x-1/2",
+  "bottom-end": "right-0 top-full mt-2 origin-top-right",
   right: "left-full top-1/2 ml-2 -translate-y-1/2",
 };
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { deleteLink } from "../api/links";
@@ -17,7 +17,12 @@ interface LinkRowProps {
   onDeleted: (id: string) => void;
 }
 
-export function LinkRow({ link, onChanged, onDeleted }: LinkRowProps) {
+/**
+ * Memoized because the dashboard re-renders on every keystroke in its search box, and a
+ * page holds 20 of these. Requires the parent to pass stable `onChanged`/`onDeleted`
+ * (see `useCallback` in DashboardPage) or the comparison never succeeds.
+ */
+export const LinkRow = memo(function LinkRow({ link, onChanged, onDeleted }: LinkRowProps) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -103,13 +108,8 @@ export function LinkRow({ link, onChanged, onDeleted }: LinkRowProps) {
       </div>
 
       {editing && (
-        <EditLinkModal
-          link={link}
-          open={editing}
-          onClose={() => setEditing(false)}
-          onSaved={onChanged}
-        />
+        <EditLinkModal link={link} onClose={() => setEditing(false)} onSaved={onChanged} />
       )}
     </div>
   );
-}
+});

@@ -1,6 +1,8 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { ApiError } from "../api/client";
+import { errorMessage } from "../lib/errors";
 import { Modal } from "./Modal";
 import { Spinner } from "./Spinner";
 
@@ -19,7 +21,7 @@ export function MasterPasswordModal({ action, onClose }: MasterPasswordModalProp
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!action || !password) return;
 
@@ -31,12 +33,15 @@ export function MasterPasswordModal({ action, onClose }: MasterPasswordModalProp
       setPassword("");
       onClose();
     } catch (err) {
+      // Every failure is reported in-place. Rethrowing here would escape into an
+      // unhandled rejection (nothing awaits a React event handler), leaving the
+      // dialog open with no explanation of what went wrong.
       setPassword("");
-      if (err instanceof ApiError && err.code === "invalid_master_password") {
-        setError("Incorrect master password. Please try again.");
-      } else {
-        throw err;
-      }
+      setError(
+        err instanceof ApiError && err.code === "invalid_master_password"
+          ? "Incorrect master password. Please try again."
+          : errorMessage(err),
+      );
     } finally {
       setSubmitting(false);
     }

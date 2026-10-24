@@ -2,6 +2,10 @@
 // Datetimes arrive as ISO-8601 strings over the wire.
 
 // --- Auth / users ---
+
+/** Mirrors the backend's theme enum. `lib/theme.ts` re-exports this. */
+export type ThemeMode = "light" | "dark" | "system";
+
 export interface UserRead {
   id: string;
   email: string;
@@ -9,7 +13,8 @@ export interface UserRead {
   is_active: boolean;
   is_superuser: boolean;
   email_verified: boolean;
-  theme: string;
+  /** Server-provided, so still validated at runtime with `isThemeMode`. */
+  theme: ThemeMode;
   accent: string;
   created_at: string;
 }
@@ -30,7 +35,7 @@ export interface UserUpdate {
   password?: string | null;
   // Required by the backend whenever `password` is set.
   current_password?: string | null;
-  theme?: "light" | "dark" | "system" | null;
+  theme?: ThemeMode | null;
   // Preset key ("blue") or a "#rrggbb" hex.
   accent?: string | null;
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { resendVerification } from "../api/auth";
@@ -48,7 +49,7 @@ export function SettingsPage() {
   if (!user) return null;
   const email = user.email;
 
-  async function handleProfileSave(e: React.FormEvent) {
+  async function handleProfileSave(e: FormEvent) {
     e.preventDefault();
     setSavingProfile(true);
     try {
@@ -62,7 +63,7 @@ export function SettingsPage() {
     }
   }
 
-  async function handlePasswordSave(e: React.FormEvent) {
+  async function handlePasswordSave(e: FormEvent) {
     e.preventDefault();
     if (password.length < 8) {
       toast.error("New password must be at least 8 characters.");
@@ -91,7 +92,7 @@ export function SettingsPage() {
     }
   }
 
-  async function handleEmailChange(e: React.FormEvent) {
+  async function handleEmailChange(e: FormEvent) {
     e.preventDefault();
     setSavingEmail(true);
     try {
@@ -143,7 +144,7 @@ export function SettingsPage() {
     }
   }
 
-  async function handleDeleteAccount(e: React.FormEvent) {
+  async function handleDeleteAccount(e: FormEvent) {
     e.preventDefault();
     setDeleting(true);
     try {

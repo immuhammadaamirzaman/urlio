@@ -110,6 +110,22 @@ async function peek401Code(res: Response): Promise<string | null> {
   }
 }
 
+/**
+ * Normalize a `fetch` rejection (DNS failure, connection refused, CORS) into an `ApiError`
+ * with status 0, so callers only ever have one error shape to handle.
+ */
+function toNetworkError(error: unknown): ApiError {
+  const message =
+    error instanceof Error && error.message ? error.message : "Unable to reach the server.";
+  return new ApiError(
+    0,
+    null,
+    message === "Failed to fetch"
+      ? "The server could not be reached. Make sure the backend is running and try again."
+      : message,
+  );
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let body: ApiErrorBody | null = null;
   try {
@@ -142,12 +158,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
   try {
     res = await doFetch(path, opts);
   } catch (error) {
-    const message = error instanceof Error && error.message
-      ? error.message
-      : "Unable to reach the server.";
-    throw new ApiError(0, null, message === "Failed to fetch"
-      ? "The server could not be reached. Make sure the backend is running and try again."
-      : message);
+    throw toNetworkError(error);
   }
 
   // Attempt a single transparent refresh + retry on a refreshable 401.
@@ -160,12 +171,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
         try {
           res = await doFetch(path, opts);
         } catch (error) {
-          const message = error instanceof Error && error.message
-            ? error.message
-            : "Unable to reach the server.";
-          throw new ApiError(0, null, message === "Failed to fetch"
-            ? "The server could not be reached. Make sure the backend is running and try again."
-            : message);
+          throw toNetworkError(error);
         }
         if (res.status === 401) {
           const retryCode = await peek401Code(res);

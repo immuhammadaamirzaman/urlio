@@ -1,32 +1,60 @@
+import { lazy } from "react";
+import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
-import { AdminPage } from "./pages/admin/AdminPage";
 import { ConfirmEmailChangePage } from "./pages/ConfirmEmailChangePage";
-import { DashboardPage } from "./pages/DashboardPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { HomePage } from "./pages/HomePage";
-import { LinkDetailPage } from "./pages/LinkDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
-import { CredentialsPage } from "./pages/CredentialsPage";
-import { SecretsPage } from "./pages/SecretsPage";
-import { SettingsPage } from "./pages/SettingsPage";
 import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 
+/*
+ * Split point. Everything above is the anonymous entry path — the landing page, the auth
+ * forms, and the pages people reach from an email link — so it stays in the entry chunk
+ * where an extra round trip would be felt.
+ *
+ * Everything below is signed-in or admin-only surface that most visitors never open, and
+ * it carries the bulk of the weight (tables, the chart, the credential forms). Loading it
+ * on navigation instead of on first paint is the difference between shipping the whole app
+ * to someone who only wants to shorten one URL and shipping them the shortener.
+ *
+ * These are named exports, hence the `.then` mapping — `lazy` resolves a default export.
+ * `Layout` renders the Suspense boundary, so the shell stays put while a chunk arrives.
+ */
+const DashboardPage = lazy(() =>
+  import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })),
+);
+const LinkDetailPage = lazy(() =>
+  import("./pages/LinkDetailPage").then((m) => ({ default: m.LinkDetailPage })),
+);
+const SettingsPage = lazy(() =>
+  import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const CredentialsPage = lazy(() =>
+  import("./pages/CredentialsPage").then((m) => ({ default: m.CredentialsPage })),
+);
+const SecretsPage = lazy(() =>
+  import("./pages/SecretsPage").then((m) => ({ default: m.SecretsPage })),
+);
+const AdminPage = lazy(() =>
+  import("./pages/admin/AdminPage").then((m) => ({ default: m.AdminPage })),
+);
+
 /** Redirect already-authenticated users away from the auth pages. */
-function GuestOnly({ children }: { children: React.ReactNode }) {
+function GuestOnly({ children }: { children: ReactNode }) {
   const { isAuthenticated, initializing } = useAuth();
   if (initializing) return null;
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 }
 
 /** Superuser-only routes: sign-in required, then an is_superuser check. */
-function AdminOnly({ children }: { children: React.ReactNode }) {
+function AdminOnly({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, initializing } = useAuth();
   const location = useLocation();
   if (initializing) return null;
