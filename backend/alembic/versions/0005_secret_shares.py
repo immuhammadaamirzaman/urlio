@@ -28,6 +28,12 @@ def upgrade() -> None:
         sa.Column("nonce", sa.String(length=255), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("consumed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "require_auth",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_secret_shares_token"), "secret_shares", ["token"], unique=True)

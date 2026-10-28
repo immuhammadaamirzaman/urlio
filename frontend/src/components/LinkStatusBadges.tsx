@@ -1,12 +1,15 @@
-import type { LinkRead } from "../api/types";
+import type { ReactNode } from "react";
 
-export function isExpired(link: Pick<LinkRead, "expires_at">): boolean {
+import type { LinkRead } from "../api/types";
+import { isPreviewId } from "../lib/guestSandbox";
+
+function isExpired(link: Pick<LinkRead, "expires_at">): boolean {
   if (!link.expires_at) return false;
   const t = new Date(link.expires_at).getTime();
   return !Number.isNaN(t) && t < Date.now();
 }
 
-function Badge({ tone, children }: { tone: string; children: React.ReactNode }) {
+function Badge({ tone, children }: { tone: string; children: ReactNode }) {
   return (
     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{children}</span>
   );
@@ -22,6 +25,13 @@ export function LinkStatusBadges({ link }: { link: LinkRead }) {
         <Badge tone="bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300">Expired</Badge>
       ) : (
         <Badge tone="bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300">Active</Badge>
+      )}
+      {/* A preview link looks identical to a real one but resolves nowhere, so say so
+          wherever it's listed rather than letting someone discover it by clicking. */}
+      {isPreviewId(link.id) && (
+        <Badge tone="bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+          Preview only
+        </Badge>
       )}
       {link.is_custom_alias && (
         <Badge tone="bg-brand-500/15 text-brand-700 dark:text-brand-300">Custom</Badge>

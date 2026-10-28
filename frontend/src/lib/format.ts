@@ -1,35 +1,53 @@
 // Small presentation helpers shared across pages.
 
-export function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+/*
+ * Formatters are built once and reused. `toLocaleString` constructs an
+ * `Intl.DateTimeFormat` on every call, which is the expensive part of formatting — and
+ * the admin and dashboard tables format several dates per row across a 20-row page, so
+ * that cost lands dozens of times per render. Built lazily so a locale-less environment
+ * can't break module evaluation.
+ */
+function lazyFormatter(options: Intl.DateTimeFormatOptions) {
+  let cached: Intl.DateTimeFormat | null = null;
+  return () => (cached ??= new Intl.DateTimeFormat(undefined, options));
+}
+
+const dateTimeFormatter = lazyFormatter({
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const dateFormatter = lazyFormatter({
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+
+/** Parse an ISO string, or `null` when it is absent or unparseable. */
+function parseIso(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function formatDateTime(iso: string | null | undefined): string {
+  const d = parseIso(iso);
+  return d ? dateTimeFormatter().format(d) : "—";
 }
 
 export function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const d = parseIso(iso);
+  return d ? dateFormatter().format(d) : "—";
 }
 
 /** Human "time ago" string, e.g. "3h ago". Falls back to a date for older values. */
 export function timeAgo(iso: string | null | undefined): string {
-  if (!iso) return "never";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "never";
-  const seconds = Math.floor((Date.now() - then) / 1000);
+  const date = parseIso(iso);
+  if (!date) return "never";
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -40,8 +58,12 @@ export function timeAgo(iso: string | null | undefined): string {
   return formatDate(iso);
 }
 
+// Same reasoning as the date formatters: this one runs on every click count and stat
+// cell, so it should not rebuild an `Intl.NumberFormat` each time.
+let numberFormatter: Intl.NumberFormat | null = null;
+
 export function formatNumber(n: number): string {
-  return n.toLocaleString();
+  return (numberFormatter ??= new Intl.NumberFormat()).format(n);
 }
 
 /** Strip the scheme for a compact display of a target URL. */
@@ -51,16 +73,13 @@ export function prettyUrl(url: string): string {
 
 /** Convert a `<input type="datetime-local">` value to an ISO-8601 string (or null). */
 export function localDateTimeToIso(value: string): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  return parseIso(value)?.toISOString() ?? null;
 }
 
 /** Convert an ISO-8601 string to a `<input type="datetime-local">` value. */
 export function isoToLocalDateTime(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
+  const d = parseIso(iso);
+  if (!d) return "";
   // Adjust for the local timezone offset so the displayed value matches local time.
   const tzOffsetMs = d.getTimezoneOffset() * 60_000;
   return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);

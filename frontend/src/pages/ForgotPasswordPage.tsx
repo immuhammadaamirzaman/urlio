@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { forgotPassword } from "../api/auth";
@@ -12,7 +13,7 @@ export function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);

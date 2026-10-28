@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { updateLink } from "../api/links";
 import type { LinkRead, LinkUpdate } from "../api/types";
@@ -10,14 +11,18 @@ import { Spinner } from "./Spinner";
 
 interface EditLinkModalProps {
   link: LinkRead;
-  open: boolean;
   onClose: () => void;
   onSaved: (link: LinkRead) => void;
 }
 
 type PasswordMode = "keep" | "set" | "remove";
 
-export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalProps) {
+/**
+ * Render this conditionally (`{editing && <EditLinkModal … />}`). Mounting is what
+ * seeds the form from `link`, so there is deliberately no `open` prop to keep in
+ * sync with the caller's own flag.
+ */
+export function EditLinkModal({ link, onClose, onSaved }: EditLinkModalProps) {
   const toast = useToast();
   const [targetUrl, setTargetUrl] = useState(link.target_url);
   const [isActive, setIsActive] = useState(link.is_active);
@@ -27,7 +32,7 @@ export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalPro
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -69,7 +74,7 @@ export function EditLinkModal({ link, open, onClose, onSaved }: EditLinkModalPro
   }
 
   return (
-    <Modal open={open} title={`Edit /${link.code}`} onClose={onClose}>
+    <Modal open title={`Edit /${link.code}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="label" htmlFor="edit_target">

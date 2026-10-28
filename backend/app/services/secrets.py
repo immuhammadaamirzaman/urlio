@@ -6,6 +6,7 @@ import base64
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from redis.asyncio import Redis
@@ -14,11 +15,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import (
+    SecretShareAuthRequiredError,
     SecretShareConsumedError,
     SecretShareExpiredError,
     SecretShareNotFoundError,
 )
 from app.models.secret import SecretShare
+
+if TYPE_CHECKING:  # the viewer is only tested for presence, so keep it a typing-only import
+    from app.models.user import User
 
 
 def _aware_utc(value: datetime | None) -> datetime | None:
@@ -62,6 +67,7 @@ async def create_secret_share(
     secret: str,
     *,
     expires_in_seconds: int,
+    require_auth: bool = False,
 ) -> SecretShare:
     ciphertext, nonce = _encrypt_secret(secret)
     now = _aware_utc(datetime.now(UTC))
@@ -71,6 +77,7 @@ async def create_secret_share(
         ciphertext=ciphertext,
         nonce=nonce,
         expires_at=expires_at,
+        require_auth=require_auth,
         created_at=now,
         updated_at=now,
     )
@@ -84,7 +91,15 @@ async def open_secret_share(
     session: AsyncSession,
     redis: Redis,
     token: str,
+    *,
+    viewer: User | None = None,
 ) -> tuple[str, datetime]:
+    """Decrypt and burn a share. ``viewer`` is the caller, or None when anonymous.
+
+    A share created with ``require_auth`` refuses an anonymous ``viewer``. That check runs
+    before the Redis claim below, so a rejected attempt leaves the share intact and the
+    visitor can retry the same link after signing in.
+    """
     now = _aware_utc(datetime.now(UTC))
     marker_key = f"secret:consumed:{token}"
 
@@ -96,6 +111,9 @@ async def open_secret_share(
     if _aware_utc(share.expires_at) is not None and _aware_utc(share.expires_at) < now:
         await redis.delete(marker_key)
         raise SecretShareExpiredError()
+
+    if share.require_auth and viewer is None:
+        raise SecretShareAuthRequiredError()
 
     if share.consumed_at is not None:
         await redis.set(marker_key, "1", ex=60)

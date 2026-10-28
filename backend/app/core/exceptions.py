@@ -144,6 +144,21 @@ class NotAuthorizedError(AppError):
     message = "You do not have permission to perform this action."
 
 
+class GuestReadOnlyError(AppError):
+    """A state-changing request made by the shared guest/demo account (app.core.guest).
+
+    403 rather than 401: the session is perfectly valid, the account simply may not write.
+    Clients must not treat this as a dead session.
+    """
+
+    status_code = 403
+    code = "guest_read_only"
+    message = (
+        "You're signed in to the shared guest account, so changes aren't saved. "
+        "Create a free account to do this for real."
+    )
+
+
 class EmailAlreadyVerifiedError(AppError):
     status_code = 409
     code = "email_already_verified"
@@ -160,6 +175,19 @@ class SecretShareExpiredError(AppError):
     status_code = 410
     code = "secret_expired"
     message = "This secret share has expired."
+
+
+class SecretShareAuthRequiredError(AppError):
+    """An anonymous visitor tried to open a share whose sender required a signed-in reader.
+
+    401 so clients prompt for sign-in rather than treating the link as broken. Raised before
+    the share is claimed, so nothing is spent: the same link still opens once the visitor
+    signs in.
+    """
+
+    status_code = 401
+    code = "secret_auth_required"
+    message = "Sign in to open this secret. The sender restricted it to signed-in readers."
 
 
 # --- Links / shortcodes ----------------------------------------------------

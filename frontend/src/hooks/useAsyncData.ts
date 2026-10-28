@@ -1,22 +1,28 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
-import { errorMessage } from "../lib/errors";
+import { errorMessage, isAbortError } from "../lib/errors";
 
 interface AsyncState<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
   reload: () => void;
-  setData: React.Dispatch<React.SetStateAction<T | null>>;
+  setData: Dispatch<SetStateAction<T | null>>;
 }
 
 /**
- * Run an async fetcher on mount and whenever a dependency in `deps` changes.
+ * Run an async fetcher on mount and whenever a value in `deps` changes.
  * Returns loading/error state plus a `reload` and a `setData` for optimistic updates.
+ *
+ * `deps` must hold JSON-serializable values (the primitives every call site passes:
+ * ids, search terms, offsets, filter flags). They are compared by serialized value
+ * rather than spread into the effect's dependency array, so the array stays a fixed
+ * size even if a caller varies the number of dependencies between renders.
  */
 export function useAsyncData<T>(
   fetcher: (signal: AbortSignal) => Promise<T>,
-  deps: unknown[],
+  deps: readonly unknown[],
 ): AsyncState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,18 +31,30 @@ export function useAsyncData<T>(
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  // The fetcher is a fresh closure on every render, so it is deliberately not a
+  // dependency below — `depsKey` decides when to refetch. Kept in a ref (updated
+  // by the effect above the fetch, which React runs first) so a refetch always
+  // calls the latest closure rather than the one captured on mount.
+  const fetcherRef = useRef(fetcher);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
+
+  const depsKey = JSON.stringify(deps);
+
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
     setLoading(true);
     setError(null);
 
-    fetcher(controller.signal)
+    fetcherRef
+      .current(controller.signal)
       .then((result) => {
         if (active) setData(result);
       })
-      .catch((err) => {
-        if (active && err?.name !== "AbortError") setError(errorMessage(err));
+      .catch((err: unknown) => {
+        if (active && !isAbortError(err)) setError(errorMessage(err));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -46,8 +64,7 @@ export function useAsyncData<T>(
       active = false;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, nonce]);
+  }, [depsKey, nonce]);
 
   return { data, loading, error, reload, setData };
 }

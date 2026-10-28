@@ -1,5 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { ReactNode } from "react";
+
+import { CloseIcon } from "./ServiceIcons";
 
 interface ModalProps {
   open: boolean;
@@ -8,15 +10,93 @@ interface ModalProps {
   children: ReactNode;
 }
 
+const FOCUSABLE = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+/** Focusable data-entry controls, for choosing where a dialog opens focused. */
+const FIELDS = [
+  "input:not([disabled]):not([type=hidden])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+].join(",");
+
 export function Modal({ open, title, onClose, children }: ModalProps) {
+  const titleId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+
+  // Read through a ref so the effect below can depend on `open` alone. Callers pass an
+  // inline arrow or a locally-declared function, so `onClose` gets a new identity on
+  // every parent render — and for the dialogs whose text input lives in the parent
+  // (the master-password prompt, delete-account confirm) that is every keystroke.
+  // Depending on it directly made the effect tear down and re-run mid-typing, which
+  // restored focus to the opener and then dragged it back, once per character.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  /**
+   * `aria-modal="true"` is a promise to assistive tech that the rest of the page is
+   * unreachable, so the dialog has to keep focus inside itself, hand focus back to
+   * whatever opened it, and stop the page behind from scrolling.
+   */
   useEffect(() => {
     if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Land on the first form control, so a dialog that exists to collect input focuses
+    // the input rather than the header's close button (which precedes it in the DOM).
+    //
+    // Deliberately not keyed off `[autofocus]`: React never writes that attribute, it
+    // polyfills `autoFocus` by calling focus() during commit — which happens before
+    // this passive effect, so matching on the attribute would find nothing and we would
+    // then steal focus away from the field React had just focused.
+    //
+    // Falls back to any focusable node, then the panel itself for read-only dialogs.
+    const target =
+      panel.current?.querySelector<HTMLElement>(FIELDS) ??
+      panel.current?.querySelector<HTMLElement>(FOCUSABLE) ??
+      panel.current;
+    target?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !panel.current) return;
+
+      const targets = Array.from(panel.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+      const firstTarget = targets[0];
+      const lastTarget = targets[targets.length - 1];
+      if (!firstTarget || !lastTarget) return;
+
+      // Wrap at both ends so Tab can never walk out into the page behind.
+      if (!e.shiftKey && document.activeElement === lastTarget) {
+        e.preventDefault();
+        firstTarget.focus();
+      } else if (e.shiftKey && document.activeElement === firstTarget) {
+        e.preventDefault();
+        lastTarget.focus();
+      }
     }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -27,21 +107,25 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
       role="presentation"
     >
       <div
+        ref={panel}
         className="card w-full max-w-md p-6"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
+        tabIndex={-1}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-content">{title}</h2>
+          <h2 id={titleId} className="text-lg font-semibold text-content">
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
             className="btn-ghost px-2 py-1 text-content-subtle"
             aria-label="Close"
           >
-            ✕
+            <CloseIcon className="h-4 w-4" />
           </button>
         </div>
         {children}

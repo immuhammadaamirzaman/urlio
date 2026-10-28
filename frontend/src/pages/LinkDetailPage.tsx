@@ -97,7 +97,7 @@ export function LinkDetailPage() {
           <StatCard
             label="Top referrer"
             value={
-              stats.data?.top_referrers?.[0]?.referrer
+              stats.data?.top_referrers[0]?.referrer
                 ? prettyUrl(stats.data.top_referrers[0].referrer)
                 : "Direct"
             }
@@ -139,8 +139,12 @@ export function LinkDetailPage() {
           <h2 className="mb-3 text-base font-semibold text-content">Top referrers</h2>
           {stats.data && stats.data.top_referrers.length > 0 ? (
             <ul className="divide-y divide-border">
-              {stats.data.top_referrers.map((r, i) => (
-                <li key={i} className="flex items-center justify-between py-2 text-sm">
+              {/* The backend groups by referrer, so each value appears once. */}
+              {stats.data.top_referrers.map((r) => (
+                <li
+                  key={r.referrer ?? "__direct__"}
+                  className="flex items-center justify-between py-2 text-sm"
+                >
                   <span className="truncate text-content">
                     {r.referrer ? prettyUrl(r.referrer) : "Direct / none"}
                   </span>

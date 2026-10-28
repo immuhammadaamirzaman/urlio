@@ -2,20 +2,25 @@
 // either a named preset key ("blue") or a "#rrggbb" custom hex. Both drive the
 // `--brand-*` and `.dark` CSS variables/class defined in index.css.
 
+import type { ThemeMode } from "../api/types";
 import { prefersReducedMotion } from "./motion";
 
-export const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
-export type Shade = (typeof SHADES)[number];
+const SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+type Shade = (typeof SHADES)[number];
 /** A palette as hex strings keyed by shade. */
-export type HexScale = Record<Shade, string>;
+type HexScale = Record<Shade, string>;
 
-export type ThemeMode = "light" | "dark" | "system";
+export type { ThemeMode };
 export type ResolvedMode = "light" | "dark";
 
 export const DEFAULT_MODE: ThemeMode = "system";
-export const DEFAULT_ACCENT = "blue";
 
-export interface AccentPreset {
+/** Narrow an untrusted value (localStorage, API response) to a `ThemeMode`. */
+export function isThemeMode(value: unknown): value is ThemeMode {
+  return value === "light" || value === "dark" || value === "system";
+}
+
+interface AccentPreset {
   key: string;
   label: string;
   /** The 500 swatch shown in the picker. */
@@ -23,18 +28,24 @@ export interface AccentPreset {
   scale: HexScale;
 }
 
-// Curated presets. "blue" matches the app's original brand palette so existing
-// users see no change; the rest are hand-tuned scales.
-export const ACCENT_PRESETS: AccentPreset[] = [
-  {
-    key: "blue",
-    label: "Blue",
-    swatch: "#3366ff",
-    scale: {
-      50: "#eef4ff", 100: "#d9e6ff", 200: "#bcd3ff", 300: "#8eb6ff", 400: "#598dff",
-      500: "#3366ff", 600: "#1f47f5", 700: "#1735e1", 800: "#192db6", 900: "#1a2c8f",
-    },
+// Matches the app's original brand palette so existing users see no change. Held as its
+// own binding so the default-accent fallbacks below resolve statically, with no lookup
+// that could miss and no way for `DEFAULT_ACCENT` to name a preset that isn't listed.
+const BLUE_PRESET: AccentPreset = {
+  key: "blue",
+  label: "Blue",
+  swatch: "#3366ff",
+  scale: {
+    50: "#eef4ff", 100: "#d9e6ff", 200: "#bcd3ff", 300: "#8eb6ff", 400: "#598dff",
+    500: "#3366ff", 600: "#1f47f5", 700: "#1735e1", 800: "#192db6", 900: "#1a2c8f",
   },
+};
+
+export const DEFAULT_ACCENT = BLUE_PRESET.key;
+
+// Curated presets; the non-default ones are hand-tuned scales.
+export const ACCENT_PRESETS: AccentPreset[] = [
+  BLUE_PRESET,
   {
     key: "violet",
     label: "Violet",
@@ -84,7 +95,7 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 
 const PRESET_BY_KEY = new Map(ACCENT_PRESETS.map((p) => [p.key, p]));
 
-export function isHexColor(v: string): boolean {
+function isHexColor(v: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(v);
 }
 
@@ -144,7 +155,7 @@ export function accentToBrandVars(accent: string): Record<string, string> {
     ? hexScaleToChannels(preset.scale)
     : isHexColor(accent)
       ? generateChannelScale(accent)
-      : hexScaleToChannels(PRESET_BY_KEY.get(DEFAULT_ACCENT)!.scale);
+      : hexScaleToChannels(BLUE_PRESET.scale);
 
   const vars: Record<string, string> = {};
   for (const shade of SHADES) vars[`--brand-${shade}`] = channels[shade];
@@ -156,7 +167,7 @@ export function accentSwatch(accent: string): string {
   const preset = PRESET_BY_KEY.get(accent);
   if (preset) return preset.swatch;
   if (isHexColor(accent)) return accent.toLowerCase();
-  return PRESET_BY_KEY.get(DEFAULT_ACCENT)!.swatch;
+  return BLUE_PRESET.swatch;
 }
 
 /** True when the accent is a custom hex rather than one of the presets. */
@@ -166,7 +177,7 @@ export function isCustomAccent(accent: string): boolean {
 
 // --- DOM + system helpers --------------------------------------------------
 
-export function systemPrefersDark(): boolean {
+function systemPrefersDark(): boolean {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
 }
 
@@ -187,7 +198,7 @@ export function applyBrandVars(vars: Record<string, string>): void {
  * Class that opts the document into a brief colour cross-fade. The matching
  * rules live in index.css.
  */
-export const THEME_TRANSITION_CLASS = "theme-switching";
+const THEME_TRANSITION_CLASS = "theme-switching";
 /** Keep in step with the transition-duration in index.css. */
 const THEME_TRANSITION_MS = 320;
 
@@ -224,34 +235,46 @@ export function withThemeTransition(apply: () => void): void {
 
 // --- Persistence (localStorage; also synced to the account server-side) -----
 
-export const STORAGE_KEY = "shortlyx-theme";
+const STORAGE_KEY = "shortlyx-theme";
 
-export interface StoredTheme {
+interface StoredTheme {
   mode: ThemeMode;
   accent: string;
   /** Cached so the boot script in index.html can restore a custom accent before paint. */
   brandVars: Record<string, string>;
 }
 
-export function loadStoredTheme(): { mode: ThemeMode; accent: string } | null {
+export interface ThemeChoice {
+  mode: ThemeMode;
+  accent: string;
+}
+
+/** The persisted choice, or the app defaults when nothing valid is stored. */
+export function loadStoredTheme(): ThemeChoice {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
+    if (!raw) return { mode: DEFAULT_MODE, accent: DEFAULT_ACCENT };
     const parsed = JSON.parse(raw) as Partial<StoredTheme>;
-    const mode: ThemeMode =
-      parsed.mode === "light" || parsed.mode === "dark" || parsed.mode === "system"
-        ? parsed.mode
-        : DEFAULT_MODE;
-    const accent = typeof parsed.accent === "string" ? parsed.accent : DEFAULT_ACCENT;
-    return { mode, accent };
+    return {
+      mode: isThemeMode(parsed.mode) ? parsed.mode : DEFAULT_MODE,
+      accent: typeof parsed.accent === "string" ? parsed.accent : DEFAULT_ACCENT,
+    };
   } catch {
-    return null;
+    return { mode: DEFAULT_MODE, accent: DEFAULT_ACCENT };
   }
 }
 
-export function saveStoredTheme(mode: ThemeMode, accent: string): void {
+/**
+ * @param brandVars Pass the vars if you have already resolved them for the DOM, so the
+ *                  scale is built once per change rather than once per consumer.
+ */
+export function saveStoredTheme(
+  mode: ThemeMode,
+  accent: string,
+  brandVars: Record<string, string> = accentToBrandVars(accent),
+): void {
   try {
-    const data: StoredTheme = { mode, accent, brandVars: accentToBrandVars(accent) };
+    const data: StoredTheme = { mode, accent, brandVars };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch {
     // Ignore quota / disabled storage — the account sync is the durable copy.

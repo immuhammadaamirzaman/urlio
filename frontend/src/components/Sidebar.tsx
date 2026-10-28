@@ -3,6 +3,7 @@ import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import { guestAccountConfigured } from "../lib/guestAccount";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { usePresence } from "../hooks/usePresence";
 import { Logo } from "./Logo";
@@ -219,19 +220,14 @@ function buildLayout(isSuperuser: boolean): NavLayout {
   return { sections, ctaSlot: slot };
 }
 
-/** The nav body, shared by the desktop rail and the mobile drawer. */
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const { isAuthenticated, initializing, user } = useAuth();
   const reduceMotion = usePrefersReducedMotion();
-  // While a stored session is still hydrating we don't know yet — leave items
-  // enabled so signed-in users never see the locked state flash on reload.
   const locked = !isAuthenticated && !initializing;
   const isSuperuser = user?.is_superuser ?? false;
 
   const { sections, ctaSlot } = useMemo(() => buildLayout(isSuperuser), [isSuperuser]);
 
-  // The animations themselves are gated by `motion-safe:`; this just avoids
-  // emitting a delay that would do nothing.
   const stagger = (slot: number): CSSProperties | undefined =>
     reduceMotion ? undefined : { animationDelay: `${slot * STAGGER_MS}ms` };
 
@@ -242,9 +238,6 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           <SectionLabel style={stagger(labelSlot)}>{section.label}</SectionLabel>
           <ul className="flex flex-col gap-1">
             {section.items.map((service, index) => (
-              // The `li` owns the entrance animation and stays mounted when the
-              // row swaps between its link and locked forms after auth hydrates,
-              // so the stagger plays exactly once.
               <li
                 key={service.to}
                 style={stagger(firstItemSlot + index)}
@@ -294,8 +287,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { mounted, state } = usePresence(open, reduceMotion ? 0 : DRAWER_EXIT_MS);
   const closing = state === "closing";
 
-  // Spelled out in full rather than interpolated: Tailwind scans source for
-  // literal class names, so `motion-safe:${...}` would never be generated.
   const backdropMotion = closing
     ? "motion-safe:animate-fade-out"
     : "motion-safe:animate-fade-in";
@@ -303,9 +294,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     ? "motion-safe:animate-drawer-out"
     : "motion-safe:animate-drawer-in";
 
-  // While the mobile drawer is open: Escape closes it and the page behind it
-  // stays put. Keyed off `open`, not `mounted`, so scrolling comes back the
-  // moment the user dismisses it rather than after the animation.
   useEffect(() => {
     if (!open) return;
     function onKeyDown(event: KeyboardEvent) {

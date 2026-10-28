@@ -1,5 +1,6 @@
 import type { LinkRead } from "../api/types";
 import { prettyUrl } from "../lib/format";
+import { isPreviewId } from "../lib/guestSandbox";
 import { CopyButton } from "./CopyButton";
 
 export function ShortLinkResult({ link }: { link: LinkRead }) {
@@ -17,6 +18,14 @@ export function ShortLinkResult({ link }: { link: LinkRead }) {
         <p className="truncate text-sm text-content-muted" title={link.target_url}>
           → {link.target_url}
         </p>
+        {/* Said here, at the moment of creation, because this is where someone would
+            otherwise copy the URL and send it to a colleague. */}
+        {isPreviewId(link.id) && (
+          <p className="mt-1 text-xs font-medium text-violet-700 dark:text-violet-300">
+            Preview only — this link doesn&apos;t redirect, and it disappears when you leave
+            the guest preview.
+          </p>
+        )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {link.has_password && (

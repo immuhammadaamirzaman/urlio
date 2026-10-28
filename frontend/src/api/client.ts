@@ -6,6 +6,14 @@
 //     (single-flight) using the refresh token and retries the original request.
 //   * Normalizes backend error envelopes into a typed `ApiError`.
 
+import {
+  GuestActionError,
+  isBlockedForGuest,
+  isGuestMode,
+  notifyGuestPrompt,
+} from "../lib/guestMode";
+import type { GuestPrompt } from "../lib/guestMode";
+import { handleGuestRequest, mergeGuestReads } from "../lib/guestSandbox";
 import type { ApiErrorBody, TokenPair } from "./types";
 import { tokenStore } from "./tokenStore";
 
@@ -110,6 +118,22 @@ async function peek401Code(res: Response): Promise<string | null> {
   }
 }
 
+/**
+ * Normalize a `fetch` rejection (DNS failure, connection refused, CORS) into an `ApiError`
+ * with status 0, so callers only ever have one error shape to handle.
+ */
+function toNetworkError(error: unknown): ApiError {
+  const message =
+    error instanceof Error && error.message ? error.message : "Unable to reach the server.";
+  return new ApiError(
+    0,
+    null,
+    message === "Failed to fetch"
+      ? "The server could not be reached. Make sure the backend is running and try again."
+      : message,
+  );
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   let body: ApiErrorBody | null = null;
   try {
@@ -138,16 +162,34 @@ async function doFetch(path: string, opts: RequestOptions): Promise<Response> {
 }
 
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+  const method = opts.method ?? "GET";
+  // `auth: false` calls are exempt from guest mode by construction — they carry no session,
+  // and they are how a guest stops being one (register, reset password).
+  const guest = opts.auth !== false && isGuestMode();
+
+  if (guest) {
+    // Either the browser-local preview answers this, or it never leaves. The backend
+    // refuses guest writes as well (403 `guest_read_only`), so this layer exists to give
+    // the visitor something better than an error.
+    const outcome = handleGuestRequest(method, path, opts.body, opts.query);
+    if (outcome.kind === "fulfilled") return outcome.result as T;
+    if (outcome.kind === "limit") {
+      const prompt: GuestPrompt = { kind: "limit", feature: outcome.feature };
+      notifyGuestPrompt(prompt);
+      throw new GuestActionError(prompt);
+    }
+    if (outcome.kind === "blocked" || isBlockedForGuest(method, path)) {
+      const prompt: GuestPrompt = { kind: "read-only" };
+      notifyGuestPrompt(prompt);
+      throw new GuestActionError(prompt);
+    }
+  }
+
   let res: Response;
   try {
     res = await doFetch(path, opts);
   } catch (error) {
-    const message = error instanceof Error && error.message
-      ? error.message
-      : "Unable to reach the server.";
-    throw new ApiError(0, null, message === "Failed to fetch"
-      ? "The server could not be reached. Make sure the backend is running and try again."
-      : message);
+    throw toNetworkError(error);
   }
 
   // Attempt a single transparent refresh + retry on a refreshable 401.
@@ -160,12 +202,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
         try {
           res = await doFetch(path, opts);
         } catch (error) {
-          const message = error instanceof Error && error.message
-            ? error.message
-            : "Unable to reach the server.";
-          throw new ApiError(0, null, message === "Failed to fetch"
-            ? "The server could not be reached. Make sure the backend is running and try again."
-            : message);
+          throw toNetworkError(error);
         }
         if (res.status === 401) {
           const retryCode = await peek401Code(res);
@@ -192,7 +229,10 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     return undefined as T;
   }
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  const data: unknown = text ? JSON.parse(text) : undefined;
+  // Lists come back without the items the preview is holding, so fold them in here — a
+  // link created moments ago should still be in the dashboard after a refetch.
+  return (guest ? mergeGuestReads(method, path, opts.query, data) : data) as T;
 }
 
 export const api = {
