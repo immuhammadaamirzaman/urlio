@@ -13,6 +13,8 @@ interface FieldProps {
   onChange: (value: string) => void;
   placeholder: string;
   error?: string;
+  /** Standing guidance shown under the label; unlike `error`, it is always visible. */
+  hint?: string;
   required?: boolean;
   minLength?: number;
   maxLength: number;
@@ -27,17 +29,27 @@ function Field({
   onChange,
   placeholder,
   error,
+  hint,
   required = false,
   minLength,
   maxLength,
   autoComplete,
 }: FieldProps) {
   const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  // Both messages describe the input, so name both — and in reading order, hint first.
+  const describedBy =
+    [hint ? hintId : "", error ? errorId : ""].filter(Boolean).join(" ") || undefined;
   return (
     <div className="space-y-1">
       <label className="label" htmlFor={id}>
         {label}
       </label>
+      {hint && (
+        <p id={hintId} className="text-xs text-amber-700 dark:text-amber-400">
+          {hint}
+        </p>
+      )}
       <input
         id={id}
         type={type}
@@ -52,7 +64,7 @@ function Field({
         // Ties the message to the field so screen readers announce it on focus,
         // instead of leaving it as loose text that only sighted users connect.
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy}
       />
       {error && (
         <p id={errorId} className="text-xs text-red-600 dark:text-red-400">
@@ -97,6 +109,10 @@ export function CredentialFormFields({
         onChange={(masterPassword) => onChange({ masterPassword })}
         placeholder="Enter your master password"
         error={errors.master_password}
+        // The server keeps only the ciphertext, salt, and nonce — the password itself is
+        // never stored, so a forgotten one leaves nobody able to recover the row. Say
+        // that before the user commits a secret they can't get back.
+        hint="Keep this safe — it is never stored. If you forget it, this credential can't be decrypted or recovered."
         required
         minLength={8}
         maxLength={128}
