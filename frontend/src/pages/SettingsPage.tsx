@@ -30,6 +30,8 @@ export function SettingsPage() {
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmError, setConfirmError] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [emailPassword, setEmailPassword] = useState("");
   const [deletePassword, setDeletePassword] = useState("");
@@ -69,6 +71,13 @@ export function SettingsPage() {
       toast.error("New password must be at least 8 characters.");
       return;
     }
+    // Typo insurance, and worth more here than on most forms: the change revokes every
+    // session, so a password nobody can reproduce means a reset email to get back in.
+    if (password !== confirmPassword) {
+      setConfirmError("These passwords don't match.");
+      return;
+    }
+    setConfirmError("");
     setSavingPassword(true);
     try {
       await updateMe({ password, current_password: currentPassword });
@@ -83,6 +92,7 @@ export function SettingsPage() {
         return;
       }
       setPassword("");
+      setConfirmPassword("");
       setCurrentPassword("");
       sessions.reload();
     } catch (err) {
@@ -296,12 +306,44 @@ export function SettingsPage() {
               minLength={8}
               maxLength={128}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setConfirmError("");
+              }}
               className="input"
             />
             <p className="mt-1 text-xs text-content-muted">
               At least 8 characters. Changing your password signs out every other device.
             </p>
+          </div>
+          <div>
+            <label className="label" htmlFor="confirm_password">
+              Confirm new password
+            </label>
+            <input
+              id="confirm_password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              maxLength={128}
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setConfirmError("");
+              }}
+              className="input"
+              aria-invalid={confirmError ? true : undefined}
+              aria-describedby={confirmError ? "confirm_password_error" : undefined}
+            />
+            {confirmError && (
+              <p
+                id="confirm_password_error"
+                className="mt-1 text-sm font-medium text-red-600 dark:text-red-400"
+              >
+                {confirmError}
+              </p>
+            )}
           </div>
           <button type="submit" disabled={savingPassword} className="btn-primary">
             {savingPassword ? <Spinner className="h-4 w-4" /> : null}

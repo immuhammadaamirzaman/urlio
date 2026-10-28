@@ -13,6 +13,8 @@ export interface UserRead {
   is_active: boolean;
   is_superuser: boolean;
   email_verified: boolean;
+  /** The shared read-only demo account: every page is browsable, nothing is saved. */
+  is_guest: boolean;
   /** Server-provided, so still validated at runtime with `isThemeMode`. */
   theme: ThemeMode;
   accent: string;

@@ -9,6 +9,7 @@ import {
   type SecretPreviewResponse,
 } from "../api/secrets";
 import { CopyButton } from "../components/CopyButton";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { errorMessage } from "../lib/errors";
 import { formatDateTime } from "../lib/format";
@@ -53,6 +54,7 @@ function getFriendlyErrorMessage(error: unknown, fallback: string): string {
 export function SecretsPage() {
   const { token } = useParams();
   const toast = useToast();
+  const { isGuest } = useAuth();
 
   const [secret, setSecret] = useState("");
   const [expiresInSeconds, setExpiresInSeconds] = useState(900);
@@ -277,6 +279,14 @@ export function SecretsPage() {
               {createdExpiresAt ? (
                 <p className="mt-3 text-sm text-content-subtle">
                   Expires at: {formatDateTime(createdExpiresAt)}
+                </p>
+              ) : null}
+              {/* Sending this to someone is the whole purpose of the page, so a link that
+                  only works here cannot be left to look like a real one. */}
+              {isGuest ? (
+                <p className="mt-3 text-sm font-medium text-violet-700 dark:text-violet-300">
+                  Preview only — this share lives in your browser, so the link opens here
+                  and nowhere else. It is erased when you leave the guest preview.
                 </p>
               ) : null}
             </div>

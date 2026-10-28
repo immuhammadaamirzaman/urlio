@@ -5,17 +5,17 @@ import { resendVerification } from "../api/auth";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { errorMessage } from "../lib/errors";
+import { GuestActionDialog, GuestModeBanner } from "./GuestMode";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { PageLoader } from "./Spinner";
 
-/** Slim reminder shown on every page until the user verifies their email. */
 function VerifyEmailBanner() {
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const toast = useToast();
   const [sending, setSending] = useState(false);
 
-  if (!user || user.email_verified) return null;
+  if (!user || user.email_verified || isGuest) return null;
 
   async function handleResend() {
     setSending(true);
@@ -52,33 +52,25 @@ export function Layout() {
   const [navOpen, setNavOpen] = useState(false);
   const { pathname } = useLocation();
 
-  // Close the mobile drawer whenever the route changes.
   useEffect(() => setNavOpen(false), [pathname]);
 
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar onOpenNav={() => setNavOpen(true)} />
+      <GuestModeBanner />
       <VerifyEmailBanner />
-      {/* Full-bleed app shell: the rail hugs the viewport edge and the page
-          content stays centred in whatever space is left. */}
+          <GuestActionDialog />
+      
       <div className="flex w-full flex-1">
         <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
         <main className="min-w-0 flex-1 px-4 py-8 md:px-6">
           <div className="mx-auto w-full max-w-5xl">
-            {/* Boundary for the route chunks split out in App.tsx. It sits inside <main>
-                so the navbar and rail stay on screen while a chunk downloads, and the
-                spinner lands where the page content will. */}
             <Suspense fallback={<PageLoader />}>
               <Outlet />
             </Suspense>
           </div>
         </main>
       </div>
-      <footer className="border-t border-border bg-surface">
-        <div className="px-4 py-6 text-center text-xs text-content-subtle md:px-6">
-          ShortlyX — a fast, self-hosted URL shortener.
-        </div>
-      </footer>
     </div>
   );
 }
