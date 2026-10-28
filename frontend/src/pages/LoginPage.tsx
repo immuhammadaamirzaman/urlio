@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { AuthShell } from "../components/AuthShell";
+import { useGuestLogin } from "../components/GuestMode";
 import { Spinner } from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { errorMessage } from "../lib/errors";
@@ -21,6 +22,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const guest = useGuestLogin();
+  const busy = submitting || guest.entering;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -89,11 +92,34 @@ export function LoginPage() {
 
         {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
 
-        <button type="submit" disabled={submitting} className="btn-primary w-full">
+        <button type="submit" disabled={busy} className="btn-primary w-full">
           {submitting ? <Spinner className="h-4 w-4" /> : null}
           Sign in
         </button>
       </form>
+
+      {guest.available && (
+        <div className="mt-6 border-t border-border pt-5">
+          <button
+            type="button"
+            onClick={() => void guest.enter(from)}
+            disabled={busy}
+            className="btn-secondary w-full"
+          >
+            {guest.entering ? <Spinner className="h-4 w-4" /> : null}
+            Browse as a guest
+          </button>
+          <p className="mt-2 text-center text-xs text-content-muted">
+            Opens every page with a shared account. Anything you create stays in this
+            browser and is erased when you leave.
+          </p>
+          {guest.error && (
+            <p className="mt-2 text-center text-sm font-medium text-red-600 dark:text-red-400">
+              {guest.error}
+            </p>
+          )}
+        </div>
+      )}
     </AuthShell>
   );
 }

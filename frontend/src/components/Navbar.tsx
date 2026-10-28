@@ -27,7 +27,7 @@ interface NavbarProps {
  * the left sidebar (see `Sidebar`).
  */
 export function Navbar({ onOpenNav }: NavbarProps) {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, isGuest, user, logout } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -70,18 +70,27 @@ export function Navbar({ onOpenNav }: NavbarProps) {
           {isAuthenticated ? (
             <>
               <span className="mx-2 hidden text-sm text-content-subtle sm:inline">
-                {user?.display_name || user?.email}
+                {/* The demo account's own address would read as "you are this person",
+                    which is the one thing a guest should not come away thinking. */}
+                {isGuest ? "Guest preview" : user?.display_name || user?.email}
               </span>
               {/* Last control in the bar, so the bubble is right-anchored —
                   centred it would hang off the edge of the page. */}
-              <Tooltip label="Sign out of your account on this device" placement="bottom-end">
+              <Tooltip
+                label={
+                  isGuest
+                    ? "Leave the guest preview"
+                    : "Sign out of your account on this device"
+                }
+                placement="bottom-end"
+              >
                 <button
                   type="button"
                   onClick={handleLogout}
                   disabled={busy}
                   className="btn-secondary text-sm"
                 >
-                  Sign out
+                  {isGuest ? "Exit preview" : "Sign out"}
                 </button>
               </Tooltip>
             </>

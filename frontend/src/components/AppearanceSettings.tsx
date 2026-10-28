@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { ComponentType, KeyboardEvent } from "react";
 
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { ACCENT_PRESETS, accentSwatch, isCustomAccent } from "../lib/theme";
 import type { ThemeMode } from "../lib/theme";
@@ -18,6 +19,7 @@ const MODES: { key: ThemeMode; label: string; Icon: ComponentType<IconProps> }[]
 
 export function AppearanceSettings() {
   const { mode, accent, setMode, setAccent } = useTheme();
+  const { isGuest } = useAuth();
   const custom = isCustomAccent(accent);
   const selectedLabel = custom
     ? accentSwatch(accent)
@@ -50,7 +52,10 @@ export function AppearanceSettings() {
     <section className="card p-5">
       <h2 className="text-base font-semibold text-content">Appearance</h2>
       <p className="mt-1 text-sm text-content-muted">
-        Choose a theme and accent colour. Your choice is saved to your account.
+        Choose a theme and accent colour.{" "}
+        {isGuest
+          ? "While you're browsing as a guest it stays on this device only."
+          : "Your choice is saved to your account."}
       </p>
 
       {/* Theme mode */}

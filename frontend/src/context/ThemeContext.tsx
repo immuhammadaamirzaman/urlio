@@ -38,7 +38,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated, setUser } = useAuth();
+  const { user, isAuthenticated, isGuest, setUser } = useAuth();
 
   // One read of localStorage, shared by both initializers.
   const [initial] = useState(loadStoredTheme);
@@ -131,6 +131,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const syncToServer = useCallback(
     (nextMode: ThemeMode, nextAccent: string) => {
       if (!isAuthenticated) return;
+      // A guest's theme stays on their device. The demo account is shared, so saving it
+      // would repaint the app for whoever looks next — and sending the write at all would
+      // raise the "this needs an account" dialog over the dark-mode toggle, which is both
+      // startling and beside the point. Local state and localStorage still apply it.
+      if (isGuest) return;
       if (syncTimer.current) window.clearTimeout(syncTimer.current);
       syncTimer.current = window.setTimeout(() => {
         updateMe({ theme: nextMode, accent: nextAccent })
@@ -140,7 +145,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           });
       }, 400);
     },
-    [isAuthenticated, setUser],
+    [isAuthenticated, isGuest, setUser],
   );
 
   useEffect(() => {

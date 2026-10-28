@@ -48,9 +48,9 @@ const AdminPage = lazy(() =>
 
 /** Redirect already-authenticated users away from the auth pages. */
 function GuestOnly({ children }: { children: ReactNode }) {
-  const { isAuthenticated, initializing } = useAuth();
+  const { isAuthenticated, isGuest, initializing } = useAuth();
   if (initializing) return null;
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <>{children}</>;
+  return isAuthenticated && !isGuest ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 }
 
 /** Superuser-only routes: sign-in required, then an is_superuser check. */

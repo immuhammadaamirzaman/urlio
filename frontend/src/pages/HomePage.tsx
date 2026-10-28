@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { CreateLinkForm } from "../components/CreateLinkForm";
+import { GuestInvite } from "../components/GuestMode";
 import { ShortLinkResult } from "../components/ShortLinkResult";
 import { useAuth } from "../context/AuthContext";
 import type { LinkRead } from "../api/types";
@@ -28,6 +29,12 @@ export function HomePage() {
 
       <div className="card p-5 sm:p-6">
         <CreateLinkForm onCreated={handleCreated} />
+      </div>
+
+      {/* Sits directly under the one thing anonymous visitors can already do, where
+          "and here's how to see the rest" is the natural next question. */}
+      <div className="mt-6">
+        <GuestInvite />
       </div>
 
       {recent.length > 0 && (
