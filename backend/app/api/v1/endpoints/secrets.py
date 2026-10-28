@@ -40,8 +40,13 @@ async def create_secret_share_endpoint(
         session,
         data.secret,
         expires_in_seconds=data.expires_in_seconds,
+        require_auth=data.require_auth,
     )
-    return SecretShareResponse(token=share.token, expires_at=share.expires_at)
+    return SecretShareResponse(
+        token=share.token,
+        expires_at=share.expires_at,
+        require_auth=share.require_auth,
+    )
 
 
 @router.get(
@@ -53,6 +58,7 @@ async def get_secret_share_endpoint(
     reveal: bool = Query(False),
     session: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis_dep),
+    viewer: User | None = Depends(get_optional_user),
 ) -> Union[SecretOpenResponse, SecretPreviewResponse]:
     """Get secret share with optional reveal.
 
@@ -61,10 +67,16 @@ async def get_secret_share_endpoint(
 
     This design allows normal GET requests to work intuitively while preventing
     accidental consumption by link unfurlers and bots.
+
+    Authentication is optional on both branches. The preview must answer anonymous callers
+    so a reader can be told a sign-in is needed before spending the single reveal; the
+    reveal branch then enforces the sender's `require_auth` choice.
     """
     if reveal:
         # User wants to reveal/consume the secret
-        secret, expires_at = await open_secret_share(session, redis, token)
+        secret, expires_at = await open_secret_share(
+            session, redis, token, viewer=viewer
+        )
         return SecretOpenResponse(secret=secret, expires_at=expires_at)
     else:
         # Preview only (non-consuming, safe for bots and link unfurlers)
@@ -77,6 +89,10 @@ async def get_secret_share_endpoint(
             raise SecretShareExpiredError()
 
         consumed = share.consumed_at is not None
-        return SecretPreviewResponse(consumed=consumed, expires_at=share.expires_at)
+        return SecretPreviewResponse(
+            consumed=consumed,
+            expires_at=share.expires_at,
+            require_auth=share.require_auth,
+        )
 
 

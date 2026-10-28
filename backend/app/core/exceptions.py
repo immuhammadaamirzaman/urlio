@@ -177,6 +177,19 @@ class SecretShareExpiredError(AppError):
     message = "This secret share has expired."
 
 
+class SecretShareAuthRequiredError(AppError):
+    """An anonymous visitor tried to open a share whose sender required a signed-in reader.
+
+    401 so clients prompt for sign-in rather than treating the link as broken. Raised before
+    the share is claimed, so nothing is spent: the same link still opens once the visitor
+    signs in.
+    """
+
+    status_code = 401
+    code = "secret_auth_required"
+    message = "Sign in to open this secret. The sender restricted it to signed-in readers."
+
+
 # --- Links / shortcodes ----------------------------------------------------
 class AliasConflictError(AppError):
     status_code = 409

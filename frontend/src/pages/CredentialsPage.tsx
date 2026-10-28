@@ -21,8 +21,9 @@ import { EmptyState, ErrorState } from "../components/ErrorState";
 import { MasterPasswordModal } from "../components/MasterPasswordModal";
 import type { PendingAction } from "../components/MasterPasswordModal";
 import { Pagination } from "../components/Pagination";
-import { ChevronDownIcon } from "../components/ServiceIcons";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "../components/ServiceIcons";
 import { PageLoader } from "../components/Spinner";
+import { Tooltip } from "../components/Tooltip";
 import { useToast } from "../context/ToastContext";
 import { useAsyncData } from "../hooks/useAsyncData";
 import type {
@@ -72,6 +73,9 @@ export function CredentialsPage() {
   );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  // The row whose password is currently shown in the clear. Only one row is expanded at
+  // a time, so a single id covers it, and it defaults to hidden on every render.
+  const [revealedId, setRevealedId] = useState<string | null>(null);
 
   // Inline edit state. Only one row edits at a time, so a single set is enough.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -101,6 +105,9 @@ export function CredentialsPage() {
 
   function toggleExpanded(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
+    // Re-hide on collapse so a password can't be left on screen, or reappear later when
+    // the row is reopened in front of someone else.
+    setRevealedId(null);
   }
 
   function toggleSelected(id: string) {
@@ -328,6 +335,7 @@ export function CredentialsPage() {
               const expanded = expandedId === credential.id;
               const decrypted = decryptedMap.get(credential.id);
               const isEditing = editingId === credential.id;
+              const revealed = revealedId === credential.id;
               return (
                 <div key={credential.id}>
                   {/* The checkbox is a sibling of the expand button rather than a child:
@@ -370,12 +378,21 @@ export function CredentialsPage() {
                   {expanded && (
                     <div className="card rounded-t-none border-t-0 border-l-4 border-l-brand-500 bg-surface p-4 pl-6">
                       <div className="flex flex-wrap gap-2">
+                        {/* Once the plaintext is cached it is already on screen below, so
+                            a live button here would only prompt for the master password
+                            to produce what the user can already read. */}
                         <button
                           type="button"
                           className="btn-primary text-sm"
                           onClick={() => handleDecrypt(credential.id)}
+                          disabled={decrypted !== undefined}
+                          title={
+                            decrypted
+                              ? "Already decrypted — the values are shown below."
+                              : undefined
+                          }
                         >
-                          Decrypt
+                          {decrypted ? "Decrypted" : "Decrypt"}
                         </button>
                         <button
                           type="button"
@@ -420,11 +437,49 @@ export function CredentialsPage() {
                             />
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-content-muted">
+                            <span className="shrink-0 text-xs font-medium text-content-muted">
                               Password:
                             </span>
-                            <span className="text-sm text-content">•••••••</span>
-                            <CopyButton value={decrypted.password} label="Copy password" />
+                            <span
+                              className={`min-w-0 break-all text-sm text-content ${
+                                revealed ? "font-mono" : ""
+                              }`}
+                            >
+                              {revealed ? decrypted.password : "•••••••"}
+                            </span>
+                            {/* Copying alone is not enough: a password may need to be
+                                typed elsewhere or read back to confirm it, and hiding it
+                                by default keeps it off a shared screen until asked for.
+                                Named for the thing it controls with the state in
+                                `aria-checked`, so the action wording can live in the
+                                tooltip without the two reading as a double label —
+                                same arrangement as ThemeToggle. */}
+                            <Tooltip
+                              label={revealed ? "Hide password" : "Show password"}
+                              className="shrink-0"
+                            >
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={revealed}
+                                aria-label="Reveal password"
+                                className="rounded-lg p-1.5 text-content-muted transition-colors hover:bg-surface-muted hover:text-content"
+                                onClick={() =>
+                                  setRevealedId(revealed ? null : credential.id)
+                                }
+                              >
+                                {revealed ? (
+                                  <EyeOffIcon className="h-4 w-4" />
+                                ) : (
+                                  <EyeIcon className="h-4 w-4" />
+                                )}
+                              </button>
+                            </Tooltip>
+                            <CopyButton
+                              value={decrypted.password}
+                              label="Copy password"
+                              className="shrink-0"
+                            />
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-medium text-content-muted">

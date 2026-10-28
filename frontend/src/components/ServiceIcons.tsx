@@ -35,7 +35,10 @@ export function LinkIcon(props: IconProps) {
   );
 }
 
-/** One-time share — eye with a slash (view once, then gone). */
+/**
+ * One-time share — eye with a slash (view once, then gone). Doubles as the "hide" half
+ * of a reveal toggle, so its geometry is kept in step with `EyeIcon` below.
+ */
 export function EyeOffIcon(props: IconProps) {
   return (
     <Svg {...props}>
@@ -43,6 +46,16 @@ export function EyeOffIcon(props: IconProps) {
       <path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
       <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
       <path d="M2 2l20 20" />
+    </Svg>
+  );
+}
+
+/** Reveal a masked secret — open eye. The unslashed twin of `EyeOffIcon`. */
+export function EyeIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
     </Svg>
   );
 }

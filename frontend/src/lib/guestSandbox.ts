@@ -74,6 +74,9 @@ interface PreviewSecret {
   secret: string;
   expires_at: string;
   consumed: boolean;
+  /** Mirrors the real flag so the preview shows the same sign-in gate. Read defensively
+   *  below: shares stored before this option existed don't carry it. */
+  require_auth: boolean;
 }
 
 interface SandboxState {
@@ -420,11 +423,13 @@ function handleSecrets(verb: string, parts: string[], body: unknown, query: Quer
       secret: payload.secret,
       expires_at: new Date(Date.now() + ttl * 1000).toISOString(),
       consumed: false,
+      require_auth: Boolean(payload.require_auth),
     };
     writeState({ ...state, secrets: [share, ...state.secrets] });
     const result: SecretShareResponse = {
       token: share.token,
       expires_at: share.expires_at,
+      require_auth: share.require_auth,
     };
     return { kind: "fulfilled", result };
   }
@@ -440,9 +445,13 @@ function handleSecrets(verb: string, parts: string[], body: unknown, query: Quer
     const result: SecretPreviewResponse = {
       consumed: share.consumed,
       expires_at: share.expires_at,
+      require_auth: share.require_auth ?? false,
     };
     return { kind: "fulfilled", result };
   }
+
+  // A guest is signed in (to the shared demo account), so a share that requires a reader to
+  // be signed in opens for them — the same answer the server would give.
 
   // Burn it, so reloading the page shows the "already opened" state a recipient would get.
   writeState({
