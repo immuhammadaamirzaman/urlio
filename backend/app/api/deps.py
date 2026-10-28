@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.cache.redis import get_redis
 from app.core.config import settings
 from app.core.exceptions import AppError, NotAuthorizedError, RateLimitExceededError
+from app.core.guest import guard_guest_write
 from app.core.ratelimit import check_rate_limit
 from app.db.session import get_session
 from app.models.user import User
@@ -36,15 +37,21 @@ async def get_redis_dep() -> Redis:
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     session: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis_dep),
 ) -> User:
     """Resolve the authenticated user; raises 401 if the token is missing/invalid."""
-    return await resolve_current_user(session, redis, credentials.credentials)
+    user = await resolve_current_user(session, redis, credentials.credentials)
+    # Every authenticated endpoint resolves through here, so this is the one place the
+    # shared guest account has to be held to read-only (see app.core.guest).
+    guard_guest_write(request, user)
+    return user
 
 
 async def get_optional_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
     session: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis_dep),
@@ -53,9 +60,13 @@ async def get_optional_user(
     if credentials is None:
         return None
     try:
-        return await resolve_current_user(session, redis, credentials.credentials)
+        user = await resolve_current_user(session, redis, credentials.credentials)
     except AppError:
         return None
+    # Outside the ``except``: a guest write must surface as 403 guest_read_only, not be
+    # downgraded to "anonymous" — which would otherwise let the guest create links here.
+    guard_guest_write(request, user)
+    return user
 
 
 async def get_current_superuser(user: User = Depends(get_current_user)) -> User:

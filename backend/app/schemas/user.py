@@ -6,8 +6,9 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, computed_field
 
+from app.core.guest import is_guest_email
 from app.schemas.common import ORMBase
 
 ThemeMode = Literal["light", "dark", "system"]
@@ -36,6 +37,17 @@ class UserRead(ORMBase):
     theme: str
     accent: str
     created_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_guest(self) -> bool:
+        """The shared read-only demo account, derived rather than stored.
+
+        Lets the UI switch into guest mode without shipping the guest address to the
+        browser, and keeps the flag in step with ``GUEST_EMAIL`` — point the setting at a
+        different account and no migration or data fix-up is needed.
+        """
+        return is_guest_email(self.email)
 
 
 class UserUpdate(BaseModel):
