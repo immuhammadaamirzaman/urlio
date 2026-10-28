@@ -104,6 +104,13 @@ class Settings(BaseSettings):
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int
     EMAIL_CHANGE_TOKEN_EXPIRE_HOURS: int
 
+    # --- Guest / demo account ---
+    # Email of the shared, read-only demo account. Signing in as it unlocks every
+    # account-only surface of the app for a visitor who has not registered, but all writes
+    # are refused (see app.core.guest) so the shared account cannot be defaced, renamed, or
+    # deleted. Empty (``GUEST_EMAIL=``) disables guest mode: no account is treated as one.
+    GUEST_EMAIL: str
+
     # --- Email / SMTP ---
     # Public base URL of the frontend; used to build links in transactional emails.
     FRONTEND_URL: str

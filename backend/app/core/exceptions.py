@@ -144,6 +144,21 @@ class NotAuthorizedError(AppError):
     message = "You do not have permission to perform this action."
 
 
+class GuestReadOnlyError(AppError):
+    """A state-changing request made by the shared guest/demo account (app.core.guest).
+
+    403 rather than 401: the session is perfectly valid, the account simply may not write.
+    Clients must not treat this as a dead session.
+    """
+
+    status_code = 403
+    code = "guest_read_only"
+    message = (
+        "You're signed in to the shared guest account, so changes aren't saved. "
+        "Create a free account to do this for real."
+    )
+
+
 class EmailAlreadyVerifiedError(AppError):
     status_code = 409
     code = "email_already_verified"
